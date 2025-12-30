@@ -15,3 +15,4 @@ const connectDb = async () => {
  
 };
 module.exports = connectDb;
+// why diffrent from server and all __--- single responsibility , reusable 
