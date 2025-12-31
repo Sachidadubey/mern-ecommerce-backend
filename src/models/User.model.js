@@ -11,7 +11,7 @@ const userSchema = mongoose.Schema(
       trim:true,
       lowercase: true,
     },
-    emali: {
+    email: {
       type: String,
       required: [true, "email is required"],
       unique: true,
@@ -28,6 +28,10 @@ const userSchema = mongoose.Schema(
       type: String,
       enum: ["user", "admin"],
       default: "user"
+    },
+    isvarified: {
+      type: Boolean,
+      default:false
     }
   
   }, { timestamps: true }// mongodb auto add createdAt , updatedAt

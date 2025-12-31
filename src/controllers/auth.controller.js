@@ -1,4 +1,3 @@
-const res = require("express/lib/response");
 const User = require("../models/User.model");
 const jwt = require("jsonwebtoken");
 
