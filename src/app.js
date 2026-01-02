@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const errorHandler = require('./middlewares/errorMiddleware');
+const testRoutes = require("./routes/test.routes");
 const authRoutes = require("./routes/auth.routes");
 const cookieParser = require("cookie-parser");
 
@@ -25,6 +26,7 @@ app.get("/api/health", (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/test", testRoutes);
 
  app.get("/error-test", (req, res) => {
    throw new Error("Testing error handling");
