@@ -8,6 +8,9 @@ const crypto = require("crypto");
 const generateOtp = () => {
   return crypto.randomInt(100000, 999999).toString();
 };
+
+// const otp = generateOtp();
+// console.log(otp);
 module.exports = generateOtp;
 
 // randomInt(min,max);
