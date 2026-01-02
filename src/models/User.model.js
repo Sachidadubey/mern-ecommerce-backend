@@ -15,24 +15,39 @@ const userSchema = mongoose.Schema(
       type: String,
       required: [true, "email is required"],
       unique: true,
-      lowercase: true,// TEST@GMAIL.COM → test@gmail.com
+      lowercase: true,
+      // TEST@GMAIL.COM → test@gmail.com
     },
     password: {
       type: String,
       require: [true, "Password is required"],
       minlength: [6, "password must be atleast 6 characters"],
-      select: false,//When fetching user from DB
-          //Password will NOT be returned
+      select: false,
+      //When fetching user from DB
+     //Password will NOT be returned
     },
     role: {
       type: String,
       enum: ["user", "admin"],
       default: "user"
     },
-    isvarified: {
+    isVerified: {
       type: Boolean,
       default:false
-    }
+    },
+    otp: {
+      type: String
+    },
+    otpExpire: {
+      type: Number,
+    },
+    otpAttempts: {
+  type: Number,
+  default: 0
+    },
+    lastOtpSentAt: Number,
+
+    
   
   }, { timestamps: true }// mongodb auto add createdAt , updatedAt
 );
