@@ -1,19 +1,20 @@
 const mongoose = require('mongoose');
 
 const otpSchema = new mongoose.Schema({
-  enail: {
-    type: String,
-    required: true,
-  },
+ userId: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "User",
+  required: true
+},
   otp: {
     type: String,
     required: true
   },
   expiresAt: {
-    type: Date,
-    required: true
+    type: Number,
+    default:Date.now()+10*60*1000 // 10 min 
   },
-  isVarified: {
+  isVerified: {
     type: Boolean,
     default: false
   }
