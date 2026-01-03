@@ -1,20 +1,16 @@
+const AppError = require("../utils/AppError");
+
 exports.authorizeRoles = (...allowedRoles) => {
   return (req, res, next) => {
-
-    // safety check
     if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: "User not authenticated"
-      });
+      throw new AppError("User not authenticated", 401);
     }
 
-    // role check
     if (!allowedRoles.includes(req.user.role)) {
-      return res.status(403).json({
-        success: false,
-        message: `Role (${req.user.role}) is not allowed to access this resource`
-      });
+      throw new AppError(
+        `Role (${req.user.role}) is not allowed to access this resource`,
+        403
+      );
     }
 
     next();

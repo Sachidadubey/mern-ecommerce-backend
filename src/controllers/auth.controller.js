@@ -106,8 +106,7 @@ exports.verifyOtp = asyncHandler(async (req, res) => {
   if (!isValid) {
     user.otpAttempts += 1;
     await user.save();
-
-    return res.status(400).json({
+     return res.status(400).json({
       success: false,
       message: "Invalid OTP",
       attemptsLeft: 5 - user.otpAttempts
@@ -169,7 +168,7 @@ exports.resendOTP = asyncHandler(async (req, res) => {
 
   user.otp = hashedOtp;
   user.otpExpire = Date.now() + 10 * 60 * 1000;
-  user.otpAttempts = 0;
+  user.otpAttempts+= 1;////------------------------------check
   user.lastOtpSentAt = Date.now();
 
   await user.save();
