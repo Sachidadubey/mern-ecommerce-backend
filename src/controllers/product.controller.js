@@ -1,5 +1,6 @@
 const Product = require("../models/product.model");
 const asyncHandler = require("../utils/asyncHandler");
+const ApiFeatures = require("../utils/ApiFeatures");
 
 exports.createProduct = asyncHandler(async (req, res) => {
   const { name, description, price, stock, category } = req.body;
@@ -26,31 +27,23 @@ exports.createProduct = asyncHandler(async (req, res) => {
 
 
 // get all products ----
+
 exports.getAllProducts = asyncHandler(async (req, res) => {
-  const page = Number(req.query.page) || 1;
-  const limit = Number(req.query.limit) || 10;
-  const skip = (page - 1) * limit;
-
-  const filter = { isActive: true };
-
-  if (req.query.search) {
-    filter.name = { $regex: req.query.search, $options: "i" };
-  }
-
-  const products = await Product.find(filter)
-    .skip(skip)
-    .limit(limit)
-    .sort("-createdAt");
-
-  const total = await Product.countDocuments(filter);
+  const features = new ApiFeatures(
+    Product.find({ isActive: true }),
+    req.query
+  )
+    .filter()
+    .search()
+    .sort()
+    .paginate();
+  
+  const products = await features.query;
+  const total = await Product.countDocuments({ isActive: true });
 
   res.status(200).json({
     success: true,
-    meta: {
-      page,
-      totalPages: Math.ceil(total / limit),
-      totalProducts: total,
-    },
+    total,
     data: products,
   });
 });
