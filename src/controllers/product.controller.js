@@ -1,7 +1,11 @@
 const Product = require("../models/product.model");
 const asyncHandler = require("../utils/asyncHandler");
 const ApiFeatures = require("../utils/ApiFeatures");
+const AppError = require("../utils/AppError");
 
+/**
+ * CREATE PRODUCT
+ */
 exports.createProduct = asyncHandler(async (req, res) => {
   const { name, description, price, stock, category } = req.body;
 
@@ -25,31 +29,35 @@ exports.createProduct = asyncHandler(async (req, res) => {
   });
 });
 
-
-// get all products ----
-
+/**
+ * GET ALL PRODUCTS (FILTER + SORT + PAGINATION + CORRECT COUNT)
+ */
 exports.getAllProducts = asyncHandler(async (req, res) => {
+  const resultsPerPage = 10;
+
   const features = new ApiFeatures(
     Product.find({ isActive: true }),
     req.query
   )
     .filter()
-    .search()
     .sort()
-    .paginate();
-  
+    .countTotal(Product) // ✅ CORRECT COUNT
+    .paginate(resultsPerPage);
+
   const products = await features.query;
-  const total = await Product.countDocuments({ isActive: true });
 
   res.status(200).json({
     success: true,
-    total,
+    total: features.paginationResult.total, // ✅ filtered total
+    count: products.length,
     data: products,
+    meta:features.paginationResults, // pagination metadata 
   });
 });
 
-// (200)-> successfull read--
-
+/**
+ * GET SINGLE PRODUCT
+ */
 exports.getSingleProduct = asyncHandler(async (req, res) => {
   const product = await Product.findById(req.params.id);
 
@@ -63,17 +71,16 @@ exports.getSingleProduct = asyncHandler(async (req, res) => {
   });
 });
 
-// update products ---
+/**
+ * UPDATE PRODUCT
+ */
 exports.updateProduct = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-
-  const product = await Product.findById(id);
+  const product = await Product.findById(req.params.id);
 
   if (!product) {
-  throw new AppError("Product not found", 404);
+    throw new AppError("Product not found", 404);
   }
 
-  // Update only provided fields
   const {
     name,
     description,
@@ -95,11 +102,13 @@ exports.updateProduct = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     message: "Product updated successfully",
-    data: product,// frontend needs updated data 
+    data: product,
   });
 });
-// Why !== undefined and NOT if (name)? Because: Empty string "" is valid 0 is valid for price/stock false is valid for isActive
 
+/**
+ * DELETE PRODUCT (SOFT DELETE)
+ */
 exports.deleteProduct = asyncHandler(async (req, res) => {
   const product = await Product.findById(req.params.id);
 
