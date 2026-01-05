@@ -4,7 +4,7 @@ const productSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: [true, "Product name is required"],
+      required: true,
       trim: true,
     },
 
@@ -15,40 +15,42 @@ const productSchema = new mongoose.Schema(
 
     price: {
       type: Number,
-      required: [true, "Product price is required"],
-      min: [0, "Price cannot be negative"],
+      required: true,
+      min: 0,
+      index: true,
     },
 
     stock: {
       type: Number,
-      required: [true, "Stock is required"],
-      min: [0, "Stock cannot be negative"],
+      required: true,
+      min: 0,
     },
 
     category: {
       type: String,
       trim: true,
-      index: true, // performance
+      index: true,
     },
 
-    images: [
-      {
-        type: String, // Cloudinary / S3 URLs
-      },
-    ],
+    images: [{ type: String }],
 
     isActive: {
       type: Boolean,
       default: true,
+      index: true,
     },
 
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User", // IMPORTANT FIX
+      ref: "User",
       required: true,
     },
   },
   { timestamps: true }
 );
+
+productSchema.index({ name: "text" });
+productSchema.index({ category: 1, price: 1 });
+productSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model("Product", productSchema);
