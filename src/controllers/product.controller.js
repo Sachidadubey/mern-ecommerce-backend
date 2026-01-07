@@ -40,9 +40,9 @@ exports.getAllProducts = asyncHandler(async (req, res) => {
     req.query
   )
     .filter()
-    .sort()
-    .countTotal(Product) // ✅ CORRECT COUNT
-    .paginate(resultsPerPage);
+    .sort();
+  await features.countTotal(Product); // ✅ CORRECT COUNT
+  features.paginate(resultsPerPage);
 
   const products = await features.query;
 
@@ -51,7 +51,7 @@ exports.getAllProducts = asyncHandler(async (req, res) => {
     total: features.paginationResult.total, // ✅ filtered total
     count: products.length,
     data: products,
-    meta:features.paginationResults, // pagination metadata 
+    meta:features.paginationResult, // pagination metadata 
   });
 });
 
