@@ -1,46 +1,42 @@
-const Order = require("../models/order.model");
-const Cart = require("../models/cart.model");
-const AppError = require("../utils/AppError");
-const asyncHandler = require("../utils/asyncHandler");
-
-
 exports.createOrder = asyncHandler(async (req, res) => {
   const { address } = req.body;
+
   if (!address) {
-    throw new AppError("Address  not found", 400);
+    throw new AppError("Delivery address is required", 400);
   }
-  // fetch users cart----
-  const cart = await Cart.findOne({ user: req.user._id });
-  if (!cart || cart.items.length==0)
-  {
-    throw new AppError("Cart is Empty");
+
+  // 1️⃣ Fetch user's cart WITH product data
+  const cart = await Cart.findOne({ user: req.user._id })
+    .populate("items.product", "name");
+
+  if (!cart || cart.items.length === 0) {
+    throw new AppError("Cart is empty", 400);
   }
-  // convert cart-> order item 
+
+  // 2️⃣ Convert cart → order items (SNAPSHOT)
   const orderItems = cart.items.map((item) => ({
-    product: item.product._id,
-    name: item.product.name,
-    price: item.price,
-    quantity:item.quantity,
+    product: item.product._id,   // ObjectId
+    name: item.product.name,     // snapshot
+    price: item.price,           // snapshot
+    quantity: item.quantity,
   }));
+
+  // 3️⃣ Create order
   const order = await Order.create({
     user: req.user._id,
     items: orderItems,
     totalAmount: cart.totalPrice,
     address,
-
   });
 
-  // clear cart after order creation ---
-
+  // 4️⃣ Clear cart AFTER order creation
   cart.items = [];
   cart.totalPrice = 0;
   await cart.save();
 
   res.status(201).json({
     success: true,
-    message: "order created successfully",
+    message: "Order created successfully",
     data: order,
   });
-
 });
-
