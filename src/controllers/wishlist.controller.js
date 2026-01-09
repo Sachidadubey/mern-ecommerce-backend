@@ -1,0 +1,73 @@
+const Wishlist = require("../models/wishlist.model");
+const Product = require("../models/product.model");
+const AppError = require("../utils/AppError");
+const asyncHandler = require("../utils/asyncHandler");
+
+/**
+ * =========================
+ * ADD TO WISHLIST
+ * =========================
+ */
+exports.addToWishlist = asyncHandler(async (req, res) => {
+  const { productId } = req.params;
+
+  /**
+   * Optional safety check
+   * (recommended)
+   */
+  const product = await Product.findById(productId);
+  if (!product || !product.isActive) {
+    throw new AppError("Product not found", 404);
+  }
+
+  const wishlistItem = await Wishlist.create({
+    user: req.user._id,
+    product: productId,
+  });
+
+  res.status(201).json({
+    success: true,
+    message: "Product added to wishlist",
+    data: wishlistItem,
+  });
+});
+
+/**
+ * =========================
+ * REMOVE FROM WISHLIST
+ * =========================
+ */
+exports.removeFromWishlist = asyncHandler(async (req, res) => {
+  const { productId } = req.params;
+
+  const result = await Wishlist.findOneAndDelete({
+    user: req.user._id,
+    product: productId,
+  });
+
+  if (!result) {
+    throw new AppError("Product not found in wishlist", 404);
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "Product removed from wishlist",
+  });
+});
+
+/**
+ * =========================
+ * GET MY WISHLIST
+ * =========================
+ */
+exports.getMyWishlist = asyncHandler(async (req, res) => {
+  const wishlist = await Wishlist.find({ user: req.user._id })
+    .populate("product", "name price images averageRating")
+    .sort({ createdAt: -1 });
+
+  res.status(200).json({
+    success: true,
+    count: wishlist.length,
+    data: wishlist,
+  });
+});
