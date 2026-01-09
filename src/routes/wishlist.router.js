@@ -8,41 +8,32 @@ const {
 } = require("../controllers/wishlist.controller");
 
 const { protect } = require("../middlewares/auth.middleware");
-const { authorizedRoles } = require("../middlewares/role.middleware");
-const validateObjectId = require("../middlewares/validateObjectId");
+const { validateObjectId } = require("../middlewares/validateObjectId.middleware");
 
-/**
- * =========================
- * USER WISHLIST ROUTES
- * =========================
- * Wishlist is USER-SPECIFIC
- * Admin access is NOT required
- */
-
-// GET my wishlist
-router.get(
-  "/",
-  protect,
-  authorizedRoles("user", "admin"),
-  getMyWishlist
-);
-
-// ADD product to wishlist
+// Add to wishlist
+// POST /api/v1/wishlist/:productId
 router.post(
   "/:productId",
   protect,
-  authorizedRoles("user", "admin"),
-  validateObjectId("productId"),
+  validateObjectId,
   addToWishlist
 );
 
-// REMOVE product from wishlist
+// Remove from wishlist
+// DELETE /api/v1/wishlist/:productId
 router.delete(
   "/:productId",
   protect,
-  authorizedRoles("user", "admin"),
-  validateObjectId("productId"),
+  validateObjectId,
   removeFromWishlist
+);
+
+// Get my wishlist
+// GET /api/v1/wishlist
+router.get(
+  "/",
+  protect,
+  getMyWishlist
 );
 
 module.exports = router;
