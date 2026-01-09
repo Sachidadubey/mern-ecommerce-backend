@@ -5,31 +5,39 @@ const asyncHandler = require("../utils/asyncHandler");
 
 /**
  * =========================
- * ADD TO WISHLIST
+ * ADD TO WISHLIST (IDEMPOTENT)
  * =========================
  */
 exports.addToWishlist = asyncHandler(async (req, res) => {
   const { productId } = req.params;
 
-  /**
-   * Optional safety check
-   * (recommended)
-   */
+  // Ensure product exists & is active
   const product = await Product.findById(productId);
   if (!product || !product.isActive) {
-    throw new AppError("Product not found", 404);
+    throw new AppError("Product not available", 404);
   }
 
-  const wishlistItem = await Wishlist.create({
-    user: req.user._id,
-    product: productId,
-  });
+  try {
+    const wishlistItem = await Wishlist.create({
+      user: req.user._id,
+      product: productId,
+    });
 
-  res.status(201).json({
-    success: true,
-    message: "Product added to wishlist",
-    data: wishlistItem,
-  });
+    res.status(201).json({
+      success: true,
+      message: "Product added to wishlist",
+      data: wishlistItem,
+    });
+  } catch (err) {
+    // 🔐 Handle duplicate wishlist add (idempotency)
+    if (err.code === 11000) {
+      return res.status(200).json({
+        success: true,
+        message: "Product already in wishlist",
+      });
+    }
+    throw err;
+  }
 });
 
 /**
@@ -40,12 +48,12 @@ exports.addToWishlist = asyncHandler(async (req, res) => {
 exports.removeFromWishlist = asyncHandler(async (req, res) => {
   const { productId } = req.params;
 
-  const result = await Wishlist.findOneAndDelete({
+  const deleted = await Wishlist.findOneAndDelete({
     user: req.user._id,
     product: productId,
   });
 
-  if (!result) {
+  if (!deleted) {
     throw new AppError("Product not found in wishlist", 404);
   }
 
@@ -62,7 +70,7 @@ exports.removeFromWishlist = asyncHandler(async (req, res) => {
  */
 exports.getMyWishlist = asyncHandler(async (req, res) => {
   const wishlist = await Wishlist.find({ user: req.user._id })
-    .populate("product", "name price images averageRating")
+    .populate("product", "name price images averageRating isActive")
     .sort({ createdAt: -1 });
 
   res.status(200).json({

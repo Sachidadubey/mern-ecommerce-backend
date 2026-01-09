@@ -13,7 +13,7 @@ const asyncHandler = require("../utils/asyncHandler");
 exports.addOrUpdateReview = asyncHandler(async (req, res) => {
   const { productId, rating, comment } = req.body;
 
-  if (!rating || rating < 1 || rating > 5) {
+  if (typeof rating !== "number" || rating < 1 || rating > 5) {
     throw new AppError("Rating must be between 1 and 5", 400);
   }
 
@@ -38,7 +38,7 @@ exports.addOrUpdateReview = asyncHandler(async (req, res) => {
 
   try {
     /**
-     * Create or update review
+     * Create or update review (UPSERT)
      */
     const review = await Review.findOneAndUpdate(
       { user: req.user._id, product: productId },
@@ -118,6 +118,27 @@ exports.getProductReviews = asyncHandler(async (req, res) => {
 
 /**
  * =========================
+ * GET MY REVIEW FOR PRODUCT (USER)  ✅ ADDED
+ * =========================
+ * Needed for frontend edit flow
+ */
+exports.getMyReviewForProduct = asyncHandler(async (req, res) => {
+  const { productId } = req.params;
+
+  const review = await Review.findOne({
+    user: req.user._id,
+    product: productId,
+    isDeleted: false,
+  });
+
+  res.status(200).json({
+    success: true,
+    data: review || null,
+  });
+});
+
+/**
+ * =========================
  * DELETE REVIEW (OWNER / ADMIN)
  * =========================
  */
@@ -179,4 +200,22 @@ exports.deleteReview = asyncHandler(async (req, res) => {
     session.endSession();
     throw err;
   }
+});
+
+/**
+ * =========================
+ * GET ALL REVIEWS (ADMIN)  ✅ ADDED
+ * =========================
+ */
+exports.getAllReviewsAdmin = asyncHandler(async (req, res) => {
+  const reviews = await Review.find()
+    .populate("user", "name email")
+    .populate("product", "name")
+    .sort({ createdAt: -1 });
+
+  res.status(200).json({
+    success: true,
+    count: reviews.length,
+    data: reviews,
+  });
 });

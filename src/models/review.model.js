@@ -1,3 +1,4 @@
+// models/review.model.js
 const mongoose = require("mongoose");
 
 const reviewSchema = new mongoose.Schema(
@@ -30,17 +31,8 @@ const reviewSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-/**
- * =========================
- * INDEXES (PRODUCTION)
- * =========================
- */
-
 // One review per user per product
-reviewSchema.index(
-  { user: 1, product: 1 },
-  { unique: true }
-);
+reviewSchema.index({ user: 1, product: 1 }, { unique: true });
 
 // Fast product review queries
 reviewSchema.index({ product: 1 });
