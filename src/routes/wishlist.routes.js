@@ -8,7 +8,7 @@ const {
 } = require("../controllers/wishlist.controller");
 
 const { protect } = require("../middlewares/auth.middleware");
-const { validateObjectId } = require("../middlewares/validateObjectId.middleware");
+const validateObjectId  = require("../middlewares/validateObjectId.middleware");
 
 // Add to wishlist
 // POST /api/v1/wishlist/:productId
