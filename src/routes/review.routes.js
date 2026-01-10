@@ -11,7 +11,7 @@ const {
 
 const { protect } = require("../middlewares/auth.middleware");
 const { authorizeRoles } = require("../middlewares/role.middleware");
-const { validateObjectId } = require("../middlewares/validateObjectId.middleware");
+const  validateObjectId  = require("../middlewares/validateObjectId.middleware");
 
 /**
  * =========================
