@@ -8,32 +8,31 @@ const {
 } = require("../controllers/wishlist.controller");
 
 const { protect } = require("../middlewares/auth.middleware");
-const validateObjectId  = require("../middlewares/validateObjectId.middleware");
+const validateObjectId = require("../middlewares/validateObjectId.middleware");
+
+/**
+ * =========================
+ * USER ROUTES
+ * =========================
+ */
+
+router.use(protect);
 
 // Add to wishlist
-// POST /api/v1/wishlist/:productId
 router.post(
   "/:productId",
-  protect,
   validateObjectId,
   addToWishlist
 );
 
 // Remove from wishlist
-// DELETE /api/v1/wishlist/:productId
 router.delete(
   "/:productId",
-  protect,
   validateObjectId,
   removeFromWishlist
 );
 
 // Get my wishlist
-// GET /api/v1/wishlist
-router.get(
-  "/",
-  protect,
-  getMyWishlist
-);
+router.get("/", getMyWishlist);
 
 module.exports = router;
