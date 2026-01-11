@@ -36,7 +36,8 @@
     "nodemailer": "^7.0.12",
     "parser": "^0.1.4",
     "twilio": "^5.11.1",
-    "xss-clean": "^0.1.4"
+    "xss-clean": "^0.1.4",
+    "zod": "^4.3.5"
   },
   "devDependencies": {
     "eslint": "^9.39.2",

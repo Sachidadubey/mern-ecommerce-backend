@@ -5,6 +5,9 @@ const { protect } = require("../middlewares/auth.middleware");
 const { authorizeRoles } = require("../middlewares/role.middleware");
 const validateObjectId = require("../middlewares/validateObjectId.middleware");
 
+const validate = require("../middlewares/validate.middleware");
+const { createProductSchema } = require("../validations/product.schema");
+
 const {
   createProduct,
   updateProduct,
@@ -20,6 +23,7 @@ router.post(
   "/",
   protect,
   authorizeRoles("admin"),
+  validate(createProductSchema),
   createProduct
 );
 
@@ -47,10 +51,6 @@ router.delete(
 router.get("/", getAllProducts);
 
 // Get single product
-router.get(
-  "/:id",
-  validateObjectId,
-  getSingleProduct
-);
+router.get("/:id", validateObjectId, getSingleProduct);
 
 module.exports = router;

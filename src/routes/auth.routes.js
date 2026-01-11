@@ -1,38 +1,37 @@
 const express = require("express");
+const router = express.Router();
+
 const {
   registerUser,
   verifyOtp,
   resendOTP,
   loginUser,
   forgetPassword,
-  resetPassword
+  resetPassword,
 } = require("../controllers/auth.controller");
 
-const router = express.Router();
+const validate = require("../middlewares/validate.middleware");
+const {
+  registerSchema,
+  loginSchema,
+} = require("../validations/auth.schema");
 
-// ==============================
-// AUTH ROUTES
-// ==============================
+// Register
+router.post("/register", validate(registerSchema), registerUser);
 
-// Register user + send email OTP
-router.post("/register", registerUser);
-
-// Verify email OTP
+// Verify OTP
 router.post("/verify-otp", verifyOtp);
 
-// Resend email OTP (with cooldown)
+// Resend OTP
 router.post("/resend-otp", resendOTP);
 
-// Login (only verified users)
-router.post("/login", loginUser);
+// Login
+router.post("/login", validate(loginSchema), loginUser);
 
-// Forgot password (send OTP)
+// Forgot password
 router.post("/forgot-password", forgetPassword);
 
-// Reset password using OTP
+// Reset password
 router.post("/reset-password", resetPassword);
 
 module.exports = router;
-
-
-//router = local route handler later we plug it in main app

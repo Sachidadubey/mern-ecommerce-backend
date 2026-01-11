@@ -1,26 +1,14 @@
-const Product = require("../models/product.model");
 const asyncHandler = require("../utils/asyncHandler");
-const ApiFeatures = require("../utils/ApiFeatures");
-const AppError = require("../utils/AppError");
+const productService = require("../services/product.service");
 
 /**
  * CREATE PRODUCT
  */
 exports.createProduct = asyncHandler(async (req, res) => {
-  const { name, description, price, stock, category } = req.body;
-
-  if (!name || price == null || stock == null) {
-    throw new AppError("Name, Price, Stock are required", 400);
-  }
-
-  const product = await Product.create({
-    name,
-    description,
-    price,
-    stock,
-    category,
-    createdBy: req.user._id,
-  });
+  const product = await productService.createProductService(
+    req.user._id,
+    req.body
+  );
 
   res.status(201).json({
     success: true,
@@ -30,28 +18,18 @@ exports.createProduct = asyncHandler(async (req, res) => {
 });
 
 /**
- * GET ALL PRODUCTS (FILTER + SORT + PAGINATION + CORRECT COUNT)
+ * GET ALL PRODUCTS
  */
 exports.getAllProducts = asyncHandler(async (req, res) => {
-  const resultsPerPage = 10;
-
-  const features = new ApiFeatures(
-    Product.find({ isActive: true }),
-    req.query
-  )
-    .filter()
-    .sort();
-  await features.countTotal(Product); // ✅ CORRECT COUNT
-  features.paginate(resultsPerPage);
-
-  const products = await features.query;
+  const { products, meta } =
+    await productService.getAllProductsService(req.query);
 
   res.status(200).json({
     success: true,
-    total: features.paginationResult.total, // ✅ filtered total
+    total: meta.total,
     count: products.length,
     data: products,
-    meta:features.paginationResult, // pagination metadata 
+    meta,
   });
 });
 
@@ -59,11 +37,9 @@ exports.getAllProducts = asyncHandler(async (req, res) => {
  * GET SINGLE PRODUCT
  */
 exports.getSingleProduct = asyncHandler(async (req, res) => {
-  const product = await Product.findById(req.params.id);
-
-  if (!product || !product.isActive) {
-    throw new AppError("Product not found", 404);
-  }
+  const product = await productService.getSingleProductService(
+    req.params.id
+  );
 
   res.status(200).json({
     success: true,
@@ -75,29 +51,10 @@ exports.getSingleProduct = asyncHandler(async (req, res) => {
  * UPDATE PRODUCT
  */
 exports.updateProduct = asyncHandler(async (req, res) => {
-  const product = await Product.findById(req.params.id);
-
-  if (!product) {
-    throw new AppError("Product not found", 404);
-  }
-
-  const {
-    name,
-    description,
-    price,
-    stock,
-    category,
-    isActive,
-  } = req.body;
-
-  if (name !== undefined) product.name = name;
-  if (description !== undefined) product.description = description;
-  if (price !== undefined) product.price = price;
-  if (stock !== undefined) product.stock = stock;
-  if (category !== undefined) product.category = category;
-  if (isActive !== undefined) product.isActive = isActive;
-
-  await product.save();
+  const product = await productService.updateProductService(
+    req.params.id,
+    req.body
+  );
 
   res.status(200).json({
     success: true,
@@ -107,17 +64,10 @@ exports.updateProduct = asyncHandler(async (req, res) => {
 });
 
 /**
- * DELETE PRODUCT (SOFT DELETE)
+ * DELETE PRODUCT (SOFT)
  */
 exports.deleteProduct = asyncHandler(async (req, res) => {
-  const product = await Product.findById(req.params.id);
-
-  if (!product) {
-    throw new AppError("Product not found", 404);
-  }
-
-  product.isActive = false;
-  await product.save();
+  await productService.deleteProductService(req.params.id);
 
   res.status(200).json({
     success: true,
