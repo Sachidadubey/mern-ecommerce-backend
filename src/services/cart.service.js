@@ -2,35 +2,49 @@ const Cart = require("../models/cart.model");
 const Product = require("../models/product.model");
 const AppError = require("../utils/AppError");
 
-/**
- * ADD ITEM TO CART
- */
-exports.addToCartService = async (userId, productId, quantity) => {
-  const product = await Product.findById(productId);
-  if (!product) {
-    throw new AppError("Product not found", 404);
+/* =========================
+   HELPER: RECALCULATE CART
+========================= */
+const recalcCart = async (cart) => {
+  cart.totalPrice = cart.items.reduce(
+    (sum, item) => sum + item.quantity * item.price,
+    0
+  );
+
+  if (cart.items.length === 0) {
+    await Cart.deleteOne({ _id: cart._id });
+    return null;
   }
 
-  if (product.stock < quantity) {
-    throw new AppError("Insufficient stock", 400);
+  await cart.save();
+  return cart;
+};
+
+/* =========================
+   ADD ITEM TO CART
+========================= */
+exports.addToCartService = async (userId, productId, quantity = 1) => {
+  if (quantity < 1) {
+    throw new AppError("Quantity must be at least 1", 400);
+  }
+
+  const product = await Product.findOne({
+    _id: productId,
+    isActive: true,
+  });
+
+  if (!product) {
+    throw new AppError("Product not found or inactive", 404);
+  }
+
+  if (product.stock < 1) {
+    throw new AppError("Product is out of stock", 400);
   }
 
   let cart = await Cart.findOne({ user: userId });
 
   if (!cart) {
-    cart = await Cart.create({
-      user: userId,
-      items: [
-        {
-          product: productId,
-          quantity,
-          price: product.price,
-        },
-      ],
-      totalPrice: product.price * quantity,
-    });
-
-    return cart;
+    cart = await Cart.create({ user: userId, items: [], totalPrice: 0 });
   }
 
   const itemIndex = cart.items.findIndex(
@@ -38,105 +52,93 @@ exports.addToCartService = async (userId, productId, quantity) => {
   );
 
   if (itemIndex > -1) {
-    cart.items[itemIndex].quantity += quantity;
+    const newQty = cart.items[itemIndex].quantity + quantity;
+    cart.items[itemIndex].quantity = Math.min(newQty, product.stock);
+    cart.items[itemIndex].price = product.price;
   } else {
     cart.items.push({
       product: productId,
-      quantity,
+      quantity: Math.min(quantity, product.stock),
       price: product.price,
     });
   }
 
-  cart.totalPrice = cart.items.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
-  );
-
-  await cart.save();
-  return cart;
+  return await recalcCart(cart);
 };
 
-/**
- * GET MY CART
- */
+/* =========================
+   GET MY CART
+========================= */
 exports.getMyCartService = async (userId) => {
-  return Cart.findOne({ user: userId }).populate(
-    "items.product",
-    "name price images"
+  const cart = await Cart.findOne({ user: userId })
+    .populate("items.product", "name price stock isActive");
+
+  if (!cart) return { items: [], totalPrice: 0 };
+
+  cart.items = cart.items.filter(
+    (item) => item.product && item.product.isActive && item.product.stock > 0
   );
+
+  cart.items.forEach((item) => {
+    item.quantity = Math.min(item.quantity, item.product.stock);
+    item.price = item.product.price;
+  });
+
+  const updatedCart = await recalcCart(cart);
+  return updatedCart || { items: [], totalPrice: 0 };
 };
 
-/**
- * UPDATE CART ITEM QUANTITY
- */
+/* =========================
+   UPDATE CART ITEM
+========================= */
 exports.updateCartItemService = async (userId, productId, quantity) => {
+  if (quantity < 1) {
+    throw new AppError("Quantity must be at least 1", 400);
+  }
+
   const cart = await Cart.findOne({ user: userId });
-  if (!cart) {
-    throw new AppError("Cart not found", 404);
-  }
+  if (!cart) throw new AppError("Cart not found", 404);
 
-  const item = cart.items.find(
-    (i) => i.product.toString() === productId
+  const itemIndex = cart.items.findIndex(
+    (item) => item.product.toString() === productId
   );
-
-  if (!item) {
-    throw new AppError("Item not found in cart", 404);
+  if (itemIndex === -1) {
+    throw new AppError("Product not in cart", 404);
   }
 
-  const product = await Product.findById(productId);
-  if (!product || product.stock < quantity) {
-    throw new AppError("Insufficient stock", 400);
+  const product = await Product.findOne({
+    _id: productId,
+    isActive: true,
+  });
+
+  if (!product || product.stock < 1) {
+    throw new AppError("Product not available", 404);
   }
 
-  item.quantity = quantity;
+  cart.items[itemIndex].quantity = Math.min(quantity, product.stock);
+  cart.items[itemIndex].price = product.price;
 
-  cart.totalPrice = cart.items.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
-  );
-
-  await cart.save();
-  return cart;
+  return await recalcCart(cart);
 };
 
-/**
- * REMOVE ITEM FROM CART
- */
+/* =========================
+   REMOVE ITEM FROM CART
+========================= */
 exports.removeCartItemService = async (userId, productId) => {
   const cart = await Cart.findOne({ user: userId });
-  if (!cart) {
-    throw new AppError("Cart not found", 404);
-  }
-
-  const initialLength = cart.items.length;
+  if (!cart) throw new AppError("Cart not found", 404);
 
   cart.items = cart.items.filter(
     (item) => item.product.toString() !== productId
   );
 
-  if (cart.items.length === initialLength) {
-    throw new AppError("Item not found in cart", 404);
-  }
-
-  cart.totalPrice = cart.items.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
-  );
-
-  await cart.save();
-  return cart;
+  const updatedCart = await recalcCart(cart);
+  return updatedCart || { items: [], totalPrice: 0 };
 };
 
-/**
- * CLEAR CART
- */
+/* =========================
+   CLEAR CART
+========================= */
 exports.clearCartService = async (userId) => {
-  const cart = await Cart.findOne({ user: userId });
-  if (!cart) {
-    throw new AppError("Cart not found", 404);
-  }
-
-  cart.items = [];
-  cart.totalPrice = 0;
-  await cart.save();
+  await Cart.deleteOne({ user: userId });
 };

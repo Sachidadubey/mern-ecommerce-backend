@@ -8,6 +8,7 @@ const wishlistSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+
     product: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Product",
@@ -18,7 +19,14 @@ const wishlistSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+/* =========================
+   INDEXES (CRITICAL)
+========================= */
+
 // Prevent duplicate wishlist items
-wishlistSchema.index({ user: 1, product: 1 }, { unique: true });
+wishlistSchema.index(
+  { user: 1, product: 1 },
+  { unique: true }
+);
 
 module.exports = mongoose.model("Wishlist", wishlistSchema);

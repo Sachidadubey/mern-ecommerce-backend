@@ -2,17 +2,22 @@ const asyncHandler = require("../utils/asyncHandler");
 const reviewService = require("../services/review.service");
 
 /**
+ * =========================
  * ADD / UPDATE REVIEW
+ * =========================
+ * USER
  */
 exports.addOrUpdateReview = asyncHandler(async (req, res) => {
+  const { productId, rating, comment } = req.body;
+
   const review = await reviewService.addOrUpdateReviewService(
     req.user._id,
-    req.body.productId,
-    req.body.rating,
-    req.body.comment
+    productId,
+    rating,
+    comment
   );
 
-  res.status(200).json({
+  res.status(201).json({
     success: true,
     message: "Review saved successfully",
     data: review,
@@ -20,22 +25,28 @@ exports.addOrUpdateReview = asyncHandler(async (req, res) => {
 });
 
 /**
- * GET PRODUCT REVIEWS (PUBLIC)
+ * =========================
+ * GET PRODUCT REVIEWS
+ * =========================
+ * PUBLIC (PAGINATED)
  */
 exports.getProductReviews = asyncHandler(async (req, res) => {
-  const reviews = await reviewService.getProductReviewsService(
-    req.params.productId
+  const result = await reviewService.getProductReviewsService(
+    req.params.productId,
+    req.query
   );
 
   res.status(200).json({
     success: true,
-    count: reviews.length,
-    data: reviews,
+    ...result,
   });
 });
 
 /**
+ * =========================
  * GET MY REVIEW FOR PRODUCT
+ * =========================
+ * USER
  */
 exports.getMyReviewForProduct = asyncHandler(async (req, res) => {
   const review = await reviewService.getMyReviewForProductService(
@@ -50,7 +61,10 @@ exports.getMyReviewForProduct = asyncHandler(async (req, res) => {
 });
 
 /**
+ * =========================
  * DELETE REVIEW
+ * =========================
+ * USER / ADMIN
  */
 exports.deleteReview = asyncHandler(async (req, res) => {
   await reviewService.deleteReviewService(
@@ -65,11 +79,13 @@ exports.deleteReview = asyncHandler(async (req, res) => {
 });
 
 /**
+ * =========================
  * GET ALL REVIEWS (ADMIN)
+ * =========================
  */
 exports.getAllReviewsAdmin = asyncHandler(async (req, res) => {
   const reviews =
-    await reviewService.getAllReviewsAdminService();
+    await reviewService.getAllReviewsAdminService(req.query);
 
   res.status(200).json({
     success: true,

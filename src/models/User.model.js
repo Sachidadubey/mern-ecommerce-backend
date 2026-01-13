@@ -1,78 +1,77 @@
-const mongoose = require('mongoose');
-const bcrypt = require('bcrypt');
+const mongoose = require("mongoose");
+const bcrypt = require("bcrypt");
+// const validator = require("../middlewares/validate.middleware");
 
-const userSchema = mongoose.Schema(
+const userSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      require: [true, "Name is required"],
-      //API will return error.
-      //“Name is required” message will show.
-      trim:true,
+      required: true,
+      trim: true,
       lowercase: true,
     },
+
     email: {
       type: String,
-      required: [true, "email is required"],
+      required: true,
       unique: true,
       lowercase: true,
-      // TEST@GMAIL.COM → test@gmail.com
+      trim: true,
+      // validate: [validator.isEmail, "Invalid email"],
+      index: true,
     },
+
     password: {
       type: String,
-      require: [true, "Password is required"],
-      minlength: [6, "password must be atleast 6 characters"],
+      required: true,
+      minlength: 6,
       select: false,
-      //When fetching user from DB
-     //Password will NOT be returned
     },
+
     role: {
       type: String,
       enum: ["user", "admin"],
-      default: "user"
+      default: "user",
     },
+
     isVerified: {
       type: Boolean,
-      default:false
+      default: false,
     },
-    otp: {
-      type: String
-    },
-    otpExpire: {
-      type: Number,
-    },
-    otpAttempts: {
-  type: Number,
-  default: 0
-    },
-    lastOtpSentAt: Number,
 
-    
-  
-  }, { timestamps: true }// mongodb auto add createdAt , updatedAt
+    otpHash: {
+      type: String,
+      select: false,
+    },
+
+    otpExpire: {
+      type: Date,
+      select: false,
+    },
+
+    otpAttempts: {
+      type: Number,
+      default: 0,
+    },
+
+    refreshToken: {
+      type: String,
+      select: false,
+    },
+  },
+  { timestamps: true }
 );
 
-
-// hash password before save 
+/* ================= PASSWORD HASH ================= */
 userSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next();  //“Pre-save work finished.  next() Continue saving user.”
-  this.password = await bcrypt.hash(this.password, 10);
+  if (!this.isModified("password")) return next();
+  this.password = await bcrypt.hash(this.password, 12);
+  next();
 });
-//This is a Mongoose MiddlewareRuns before saving user into database.
-//If password did NOT change Don’t hash again Just continue
-  
 
-// compare password method
-
+/* ================= PASSWORD COMPARE ================= */
 userSchema.methods.comparePassword = async function (enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
+  return bcrypt.compare(enteredPassword, this.password);
 };
-// is used to add a custom function to the User model, so every User object automatically gets a method called comparePassword.
-//   It is a function attached to the User Model that helps us check whether the user’s entered password matches the hashed password stored in the database.
-
-// methods means: “Add custom functions to the model so every object of this schema can use it.”
-// comparePassword This is the name of the custom method.
-  
-
 
 module.exports = mongoose.model("User", userSchema);
