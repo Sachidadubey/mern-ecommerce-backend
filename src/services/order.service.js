@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const Order = require("../models/order.model");
 const Cart = require("../models/cart.model");
+const Product = require("../models/product.model");
 const AppError = require("../utils/AppError");
 
 /**
@@ -13,9 +14,8 @@ exports.createOrderService = async (userId, address) => {
   session.startTransaction();
 
   try {
-    // 1️⃣ Fetch cart
     const cart = await Cart.findOne({ user: userId })
-      .populate("items.product", "name price stock isActive")
+      .populate("items.product")
       .session(session);
 
     if (!cart || cart.items.length === 0) {
@@ -25,13 +25,15 @@ exports.createOrderService = async (userId, address) => {
     const orderItems = [];
     let totalAmount = 0;
 
-    // 2️⃣ Validate products & reduce stock
     for (const item of cart.items) {
-      const product = item.product;
+      const product = await Product.findOne({
+        _id: item.product._id,
+        isActive: true,
+      }).session(session);
 
-      if (!product || !product.isActive) {
+      if (!product) {
         throw new AppError(
-          `Product unavailable: ${product?.name || "Unknown"}`,
+          `Product unavailable: ${item.product.name}`,
           400
         );
       }
@@ -43,43 +45,41 @@ exports.createOrderService = async (userId, address) => {
         );
       }
 
+      // 🔒 Lock inventory
       product.stock -= item.quantity;
       await product.save({ session });
 
       orderItems.push({
         product: product._id,
         name: product.name,
-        price: item.price,
+        price: product.price, // ✅ DB price only
         quantity: item.quantity,
       });
 
-      totalAmount += item.price * item.quantity;
+      totalAmount += product.price * item.quantity;
     }
 
-    // 3️⃣ Create order
-    const order = await Order.create(
+    const [order] = await Order.create(
       [
         {
           user: userId,
           items: orderItems,
           totalAmount,
           address,
-          orderStatus: "CREATED",
+          orderStatus: "PLACED",
           paymentStatus: "PENDING",
         },
       ],
       { session }
     );
 
-    // 4️⃣ Clear cart
-    cart.items = [];
-    cart.totalPrice = 0;
-    await cart.save({ session });
+    // 🧹 Remove cart completely
+    await Cart.deleteOne({ user: userId }).session(session);
 
     await session.commitTransaction();
     session.endSession();
 
-    return order[0];
+    return order;
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
@@ -93,7 +93,9 @@ exports.createOrderService = async (userId, address) => {
  * =========================
  */
 exports.getMyOrdersService = async (userId) => {
-  return Order.find({ user: userId }).sort({ createdAt: -1 });
+  return Order.find({ user: userId })
+    .sort({ createdAt: -1 })
+    .lean();
 };
 
 /**
@@ -101,21 +103,13 @@ exports.getMyOrdersService = async (userId) => {
  * GET SINGLE ORDER
  * =========================
  */
-exports.getSingleOrderService = async (orderId, user) => {
-  const order = await Order.findById(orderId).populate(
-    "user",
-    "name email"
-  );
+exports.getSingleOrderService = async (orderId) => {
+  const order = await Order.findById(orderId)
+    .populate("user", "name email")
+    .populate("items.product", "name price");
 
   if (!order) {
     throw new AppError("Order not found", 404);
-  }
-
-  if (
-    order.user._id.toString() !== user._id.toString() &&
-    user.role !== "admin"
-  ) {
-    throw new AppError("Not authorized", 403);
   }
 
   return order;
@@ -126,21 +120,37 @@ exports.getSingleOrderService = async (orderId, user) => {
  * CANCEL ORDER
  * =========================
  */
-exports.cancelOrderService = async (orderId, user) => {
-  const order = await Order.findById(orderId);
-  if (!order) throw new AppError("Order not found", 404);
+exports.cancelOrderService = async (orderId) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  if (
-    order.user.toString() !== user._id.toString() &&
-    user.role !== "admin"
-  ) {
-    throw new AppError("Not authorized", 403);
+  try {
+    const order = await Order.findById(orderId).session(session);
+    if (!order) throw new AppError("Order not found", 404);
+
+    if (order.orderStatus !== "PLACED") {
+      throw new AppError("Order cannot be cancelled", 400);
+    }
+
+    // 🔄 Restore stock
+    for (const item of order.items) {
+      const product = await Product.findById(item.product).session(session);
+      if (product) {
+        product.stock += item.quantity;
+        await product.save({ session });
+      }
+    }
+
+    order.orderStatus = "CANCELLED";
+    await order.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return order;
+  } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
+    throw err;
   }
-
-  if (order.orderStatus !== "CREATED") {
-    throw new AppError("Order cannot be cancelled", 400);
-  }
-
-  order.orderStatus = "CANCELLED";
-  await order.save();
 };

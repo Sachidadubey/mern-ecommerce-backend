@@ -2,12 +2,15 @@ const asyncHandler = require("../utils/asyncHandler");
 const productService = require("../services/product.service");
 
 /**
- * CREATE PRODUCT
+ * =========================
+ * CREATE PRODUCT (ADMIN)
+ * =========================
  */
 exports.createProduct = asyncHandler(async (req, res) => {
-  const product = await productService.createProductService(
+  const product = await productService.addProductService(
+    req.body,
     req.user._id,
-    req.body
+    req.files
   );
 
   res.status(201).json({
@@ -18,7 +21,10 @@ exports.createProduct = asyncHandler(async (req, res) => {
 });
 
 /**
+ * =========================
  * GET ALL PRODUCTS
+ * (PUBLIC / ADMIN)
+ * =========================
  */
 exports.getAllProducts = asyncHandler(async (req, res) => {
   const { products, meta } =
@@ -26,15 +32,15 @@ exports.getAllProducts = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    total: meta.total,
-    count: products.length,
     data: products,
-    meta,
+    pagination: meta,
   });
 });
 
 /**
+ * =========================
  * GET SINGLE PRODUCT
+ * =========================
  */
 exports.getSingleProduct = asyncHandler(async (req, res) => {
   const product = await productService.getSingleProductService(
@@ -48,12 +54,15 @@ exports.getSingleProduct = asyncHandler(async (req, res) => {
 });
 
 /**
- * UPDATE PRODUCT
+ * =========================
+ * UPDATE PRODUCT (ADMIN)
+ * =========================
  */
 exports.updateProduct = asyncHandler(async (req, res) => {
   const product = await productService.updateProductService(
     req.params.id,
-    req.body
+    req.body,
+    req.user._id
   );
 
   res.status(200).json({
@@ -64,13 +73,17 @@ exports.updateProduct = asyncHandler(async (req, res) => {
 });
 
 /**
- * DELETE PRODUCT (SOFT)
+ * =========================
+ * DELETE PRODUCT (SOFT DELETE – ADMIN)
+ * =========================
  */
 exports.deleteProduct = asyncHandler(async (req, res) => {
-  await productService.deleteProductService(req.params.id);
+  await productService.deleteProductService(
+    req.params.id,
+    req.user._id
+  );
 
-  res.status(200).json({
+  res.status(204).json({
     success: true,
-    message: "Product deleted successfully",
   });
 });

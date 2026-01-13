@@ -9,8 +9,6 @@ const rateLimit = require("express-rate-limit");
 const AppError = require("./utils/AppError");
 const globalErrorHandler = require("./middlewares/errorMiddleware");
 
-
-
 // Routes
 const authRoutes = require("./routes/auth.routes");
 const productRoutes = require("./routes/product.route");
@@ -32,7 +30,13 @@ app.use(helmet());
 // Enable CORS
 app.use(cors());
 
-// Body parser
+// 🔴 PAYMENT WEBHOOK ROUTE MUST COME FIRST
+app.use(
+  "/api/payment/webhook",
+  express.raw({ type: "application/json" })
+);
+
+// Body parser (AFTER webhook)
 app.use(express.json({ limit: "10kb" }));
 
 // Prevent NoSQL Injection
@@ -48,7 +52,7 @@ if (process.env.NODE_ENV === "development") {
 
 // Rate Limiting
 const limiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
+  windowMs: 60 * 60 * 1000,
   max: 100,
   standardHeaders: true,
   legacyHeaders: false,
@@ -72,13 +76,12 @@ app.use("/api/wishlist", wishlistRoutes);
 /* =========================
    UNHANDLED ROUTES
 ========================= */
-// Unhandled routes
+
 app.use((req, res, next) => {
   next(new AppError(`Cannot find ${req.originalUrl} on this server`, 404));
 });
 
 // Global error handler
 app.use(globalErrorHandler);
-
 
 module.exports = app;

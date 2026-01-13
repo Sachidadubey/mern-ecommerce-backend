@@ -15,25 +15,28 @@ exports.addOrUpdateReviewService = async (
   rating,
   comment
 ) => {
-  // User must have DELIVERED order for this product
-  const hasPurchased = await Order.exists({
-    user: userId,
-    orderStatus: "DELIVERED",
-    "items.product": productId,
-  });
-
-  if (!hasPurchased) {
-    throw new AppError(
-      "You can review only products you have purchased",
-      403
-    );
+  if (rating < 1 || rating > 5) {
+    throw new AppError("Rating must be between 1 and 5", 400);
   }
 
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    // Upsert review
+    // ✅ Purchase check inside transaction
+    const hasPurchased = await Order.exists({
+      user: userId,
+      orderStatus: "DELIVERED",
+      "items.product": productId,
+    }).session(session);
+
+    if (!hasPurchased) {
+      throw new AppError(
+        "You can review only products you have purchased",
+        403
+      );
+    }
+
     const review = await Review.findOneAndUpdate(
       { user: userId, product: productId },
       { rating, comment, isDeleted: false },
@@ -45,11 +48,10 @@ exports.addOrUpdateReviewService = async (
       }
     );
 
-    // Recalculate rating
     const stats = await Review.aggregate([
       {
         $match: {
-          product: review.product,
+          product: new mongoose.Types.ObjectId(productId),
           isDeleted: false,
         },
       },
@@ -63,7 +65,7 @@ exports.addOrUpdateReviewService = async (
     ]);
 
     await Product.findByIdAndUpdate(
-      review.product,
+      productId,
       {
         averageRating: stats[0]?.avgRating || 0,
         reviewCount: stats[0]?.count || 0,
@@ -87,13 +89,35 @@ exports.addOrUpdateReviewService = async (
  * GET PRODUCT REVIEWS (PUBLIC)
  * =========================
  */
-exports.getProductReviewsService = async (productId) => {
-  return Review.find({
+exports.getProductReviewsService = async (productId, query = {}) => {
+  const page = parseInt(query.page) || 1;
+  const limit = parseInt(query.limit) || 10;
+  const skip = (page - 1) * limit;
+
+  const reviews = await Review.find({
     product: productId,
     isDeleted: false,
   })
     .populate("user", "name")
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
+    .lean();
+
+  const total = await Review.countDocuments({
+    product: productId,
+    isDeleted: false,
+  });
+
+  return {
+    reviews,
+    pagination: {
+      total,
+      page,
+      limit,
+      pages: Math.ceil(total / limit),
+    },
+  };
 };
 
 /**
@@ -106,7 +130,7 @@ exports.getMyReviewForProductService = async (userId, productId) => {
     user: userId,
     product: productId,
     isDeleted: false,
-  });
+  }).lean();
 };
 
 /**
@@ -115,30 +139,30 @@ exports.getMyReviewForProductService = async (userId, productId) => {
  * =========================
  */
 exports.deleteReviewService = async (reviewId, user) => {
-  const review = await Review.findById(reviewId);
-
-  if (!review || review.isDeleted) {
-    throw new AppError("Review not found", 404);
-  }
-
-  if (
-    review.user.toString() !== user._id.toString() &&
-    user.role !== "admin"
-  ) {
-    throw new AppError("Not authorized", 403);
-  }
-
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
+    const review = await Review.findById(reviewId).session(session);
+
+    if (!review || review.isDeleted) {
+      throw new AppError("Review not found", 404);
+    }
+
+    if (
+      review.user.toString() !== user._id.toString() &&
+      user.role !== "admin"
+    ) {
+      throw new AppError("Not authorized", 403);
+    }
+
     review.isDeleted = true;
     await review.save({ session });
 
     const stats = await Review.aggregate([
       {
         $match: {
-          product: review.product,
+          product: new mongoose.Types.ObjectId(review.product),
           isDeleted: false,
         },
       },
@@ -174,9 +198,15 @@ exports.deleteReviewService = async (reviewId, user) => {
  * GET ALL REVIEWS (ADMIN)
  * =========================
  */
-exports.getAllReviewsAdminService = async () => {
-  return Review.find()
+exports.getAllReviewsAdminService = async (query = {}) => {
+  const filter = {};
+  if (query.includeDeleted !== "true") {
+    filter.isDeleted = false;
+  }
+
+  return Review.find(filter)
     .populate("user", "name email")
     .populate("product", "name")
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .lean();
 };

@@ -4,53 +4,34 @@ const router = express.Router();
 const { protect } = require("../middlewares/auth.middleware");
 const { authorizeRoles } = require("../middlewares/role.middleware");
 const validateObjectId = require("../middlewares/validateObjectId.middleware");
-
 const validate = require("../middlewares/validate.middleware");
-const { createProductSchema } = require("../validations/product.schema");
 
-const {
-  createProduct,
-  updateProduct,
-  deleteProduct,
-  getAllProducts,
-  getSingleProduct,
-} = require("../controllers/product.controller");
+const productController = require("../controllers/product.controller");
+const { createProductSchema, updateProductSchema } = require("../validations/product.schema");
 
 /* ================= ADMIN ROUTES ================= */
+router.use(protect);
+router.use(authorizeRoles("admin"));
 
 // Create product
-router.post(
-  "/",
-  protect,
-  authorizeRoles("admin"),
-  validate(createProductSchema),
-  createProduct
-);
+router.post("/", validate(createProductSchema), Upload.array("images",5),productController.createProduct);
 
 // Update product
 router.put(
   "/:id",
-  protect,
-  authorizeRoles("admin"),
   validateObjectId,
-  updateProduct
+  validate(updateProductSchema),
+  productController.updateProduct
 );
 
 // Delete product (soft delete)
-router.delete(
-  "/:id",
-  protect,
-  authorizeRoles("admin"),
-  validateObjectId,
-  deleteProduct
-);
+router.delete("/:id", validateObjectId, productController.deleteProduct);
 
 /* ================= PUBLIC ROUTES ================= */
-
-// Get all active products
-router.get("/", getAllProducts);
+// Get all products
+router.get("/", productController.getAllProducts);
 
 // Get single product
-router.get("/:id", validateObjectId, getSingleProduct);
+router.get("/:id", validateObjectId, productController.getSingleProduct);
 
 module.exports = router;

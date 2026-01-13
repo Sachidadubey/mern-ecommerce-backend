@@ -12,9 +12,21 @@ const {
 const { protect } = require("../middlewares/auth.middleware");
 const { authorizeRoles } = require("../middlewares/role.middleware");
 const validateObjectId = require("../middlewares/validateObjectId.middleware");
-
 const validate = require("../middlewares/validate.middleware");
 const { createReviewSchema } = require("../validations/review.schema");
+
+/**
+ * =========================
+ * PUBLIC ROUTES
+ * =========================
+ */
+
+// Get reviews for a product (paginated)
+router.get(
+  "/product/:productId",
+  validateObjectId,
+  getProductReviews
+);
 
 /**
  * =========================
@@ -30,15 +42,15 @@ router.post(
   addOrUpdateReview
 );
 
-// Get MY review for a product
+// Get my review for a product
 router.get(
-  "/my/:productId",
+  "/product/:productId/me",
   protect,
   validateObjectId,
   getMyReviewForProduct
 );
 
-// Delete review (OWNER or ADMIN)
+// Delete review (owner or admin)
 router.delete(
   "/:reviewId",
   protect,
@@ -48,28 +60,15 @@ router.delete(
 
 /**
  * =========================
- * PUBLIC ROUTES
- * =========================
- */
-
-// Get reviews for a product
-router.get(
-  "/product/:productId",
-  validateObjectId,
-  getProductReviews
-);
-
-/**
- * =========================
  * ADMIN ROUTES
  * =========================
  */
 
-// Get all reviews (ADMIN)
+// Get all reviews (admin moderation)
 router.get(
-  "/admin/all",
+  "/admin",
   protect,
-  authorizeRoles("Admin"),
+  authorizeRoles("admin"),
   getAllReviewsAdmin
 );
 
