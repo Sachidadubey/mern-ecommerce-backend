@@ -61,8 +61,7 @@ const orderSchema = new mongoose.Schema(
     orderStatus: {
       type: String,
       enum: [
-        "PLACED",
-        "PAYMENT_PENDING",
+        "CREATED",
         "PAID",
         "SHIPPED",
         "DELIVERED",
@@ -93,7 +92,6 @@ const orderSchema = new mongoose.Schema(
 
     paymentOrderId: {
       type: String, // razorpay_order_id / stripe_session_id
-      index: true,
     },
 
     paymentId: {

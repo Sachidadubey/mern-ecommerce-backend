@@ -43,7 +43,6 @@ const productSchema = new mongoose.Schema(
     isActive: {
       type: Boolean,
       default: true,
-      index: true,
     },
 
     createdBy: {

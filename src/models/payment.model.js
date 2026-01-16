@@ -34,7 +34,7 @@ const paymentSchema = new mongoose.Schema(
     paymentProvider: {
       type: String,
       enum: ["razorpay", "stripe", "cod"],
-      required: true,
+      
       index: true,
     },
 

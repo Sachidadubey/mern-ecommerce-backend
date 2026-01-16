@@ -23,10 +23,7 @@ const recalcCart = async (cart) => {
 /* =========================
    ADD ITEM TO CART
 ========================= */
-exports.addToCartService = async (userId, productId, quantity = 1) => {
-  if (quantity < 1) {
-    throw new AppError("Quantity must be at least 1", 400);
-  }
+exports.addToCartService = async (userId, productId, quantity) => {
 
   const product = await Product.findOne({
     _id: productId,

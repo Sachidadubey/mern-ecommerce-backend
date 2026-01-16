@@ -44,15 +44,9 @@ exports.getMyOrders = asyncHandler(async (req, res) => {
  * USER / ADMIN
  */
 exports.getSingleOrder = asyncHandler(async (req, res) => {
-  const order = await orderService.getSingleOrderService(req.params.id);
+  const order = await orderService.getSingleOrderService(req.params.id,req.user);
 
-  // 🔐 Ownership / role check
-  if (
-    order.user.toString() !== req.user._id.toString() &&
-    req.user.role !== "admin"
-  ) {
-    throw new AppError("Not authorized to view this order", 403);
-  }
+ 
 
   res.status(200).json({
     success: true,
@@ -67,15 +61,9 @@ exports.getSingleOrder = asyncHandler(async (req, res) => {
  * USER / ADMIN
  */
 exports.cancelOrder = asyncHandler(async (req, res) => {
-  const order = await orderService.cancelOrderService(req.params.id);
+  const order = await orderService.cancelOrderService(req.params.id, req.user);
 
-  // 🔐 Ownership / role check
-  if (
-    order.user.toString() !== req.user._id.toString() &&
-    req.user.role !== "admin"
-  ) {
-    throw new AppError("Not authorized to cancel this order", 403);
-  }
+
 
   res.status(200).json({
     success: true,

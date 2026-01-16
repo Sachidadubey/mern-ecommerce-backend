@@ -3,10 +3,11 @@ const Order = require("../models/order.model");
 const Cart = require("../models/cart.model");
 const Product = require("../models/product.model");
 const AppError = require("../utils/AppError");
+const cancelOrderAndRestoreStock = require("./orderRecovery.service");
 
-/**
+/*
  * =========================
- * CREATE ORDER
+ * CREATE ORDER 
  * =========================
  */
 exports.createOrderService = async (userId, address) => {
@@ -74,7 +75,7 @@ exports.createOrderService = async (userId, address) => {
     );
 
     // 🧹 Remove cart completely
-    await Cart.deleteOne({ user: userId }).session(session);
+    // await Cart.deleteOne({ user: userId }).session(session);
 
     await session.commitTransaction();
     session.endSession();
@@ -120,37 +121,18 @@ exports.getSingleOrderService = async (orderId) => {
  * CANCEL ORDER
  * =========================
  */
-exports.cancelOrderService = async (orderId) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
+exports.cancelOrderService = async (orderId, user) => {
+  const order = await Order.findById(orderId);
+  if (!order) throw new AppError("Order not found", 404);
 
-  try {
-    const order = await Order.findById(orderId).session(session);
-    if (!order) throw new AppError("Order not found", 404);
-
-    if (order.orderStatus !== "PLACED") {
-      throw new AppError("Order cannot be cancelled", 400);
-    }
-
-    // 🔄 Restore stock
-    for (const item of order.items) {
-      const product = await Product.findById(item.product).session(session);
-      if (product) {
-        product.stock += item.quantity;
-        await product.save({ session });
-      }
-    }
-
-    order.orderStatus = "CANCELLED";
-    await order.save({ session });
-
-    await session.commitTransaction();
-    session.endSession();
-
-    return order;
-  } catch (err) {
-    await session.abortTransaction();
-    session.endSession();
-    throw err;
+  if (order.user.toString() !== user._id.toString()) {
+    throw new AppError("Not authorized", 403);
   }
+
+  if (order.paymentStatus === "PAID") {
+    throw new AppError("Paid orders cannot be cancelled", 400);
+  }
+
+  await cancelOrderAndRestoreStock(order._id);
 };
+
