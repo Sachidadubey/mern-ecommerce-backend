@@ -1,6 +1,5 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
-// const validator = require("../middlewares/validate.middleware");
 
 const userSchema = new mongoose.Schema(
   {
@@ -17,7 +16,6 @@ const userSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
-      // validate: [validator.isEmail, "Invalid email"],
       index: true,
     },
 
@@ -39,14 +37,12 @@ const userSchema = new mongoose.Schema(
       default: false,
     },
 
-    otpHash: {
+    otp: {
       type: String,
-      select: false,
     },
 
     otpExpire: {
       type: Date,
-      select: false,
     },
 
     otpAttempts: {
@@ -58,15 +54,17 @@ const userSchema = new mongoose.Schema(
       type: String,
       select: false,
     },
+    lastOtpSentAt: {
+      type:Date,
+    },
   },
   { timestamps: true }
 );
 
 /* ================= PASSWORD HASH ================= */
-userSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next();
+userSchema.pre("save", async function () {
+  if (!this.isModified("password")) return;
   this.password = await bcrypt.hash(this.password, 12);
-  next();
 });
 
 /* ================= PASSWORD COMPARE ================= */

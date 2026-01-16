@@ -3,11 +3,12 @@ const morgan = require("morgan");
 const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
-// const mongoSanitize = require("express-mongo-sanitize");
-// const xss = require("xss-clean");
 
 const AppError = require("./utils/AppError");
 const globalErrorHandler = require("./middlewares/errorMiddleware");
+
+// Controllers
+const paymentController = require("./controllers/payment.controller");
 
 // Routes
 const authRoutes = require("./routes/auth.routes");
@@ -21,42 +22,41 @@ const wishlistRoutes = require("./routes/wishlist.routes");
 const app = express();
 
 /* =========================
-   GLOBAL MIDDLEWARES
+   SECURITY & BASIC MIDDLEWARES
 ========================= */
 
-// Security HTTP headers
 app.use(helmet());
-
-// Enable CORS
 app.use(cors());
 
-// 🔴 PAYMENT WEBHOOK ROUTE MUST COME FIRST
-app.use(
+/* =========================
+   🔴 RAZORPAY WEBHOOK (MUST BE FIRST)
+========================= */
+app.post(
   "/api/payment/webhook",
-  express.raw({ type: "application/json" })
+  express.raw({ type: "application/json" }),
+  paymentController.razorpayWebhook
 );
 
-// Body parser (AFTER webhook)
+/* =========================
+   BODY PARSER (AFTER WEBHOOK)
+========================= */
 app.use(express.json({ limit: "10kb" }));
 
-// Prevent NoSQL Injection
-// app.use(mongoSanitize());
-
-// Prevent XSS attacks
-// app.use(xss());
-
-// Logging (DEV only)
+/* =========================
+   LOGGING
+========================= */
 if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
 }
 
-// Rate Limiting
+/* =========================
+   RATE LIMITING
+========================= */
 const limiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 100,
   standardHeaders: true,
   legacyHeaders: false,
-  message: "Too many requests from this IP, please try again later",
 });
 
 app.use("/api", limiter);
@@ -65,23 +65,28 @@ app.use("/api", limiter);
    ROUTES
 ========================= */
 
+app.get("/", (req, res) => {
+  res.status(200).send("Server running. Payments powered by Razorpay.");
+});
+
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
-app.use("/api/payment", paymentRoutes);
+app.use("/api/payment", paymentRoutes); // create payment etc
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/wishlist", wishlistRoutes);
 
 /* =========================
-   UNHANDLED ROUTES
+   404 HANDLER
 ========================= */
-
 app.use((req, res, next) => {
-  next(new AppError(`Cannot find ${req.originalUrl} on this server`, 404));
+  next(new AppError(`Cannot find ${req.originalUrl}`, 404));
 });
 
-// Global error handler
+/* =========================
+   GLOBAL ERROR HANDLER
+========================= */
 app.use(globalErrorHandler);
 
 module.exports = app;

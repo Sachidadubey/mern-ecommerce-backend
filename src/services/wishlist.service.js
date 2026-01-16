@@ -8,9 +8,12 @@ const AppError = require("../utils/AppError");
  * =========================
  */
 exports.addToWishlistService = async (userId, productId) => {
-  const product = await Product.findById(productId);
+  const product = await Product.findOne({
+    _id: productId,
+    isActive: true,
+  }).select("_id");
 
-  if (!product || !product.isActive) {
+  if (!product) {
     throw new AppError("Product not available", 404);
   }
 
@@ -54,6 +57,6 @@ exports.getMyWishlistService = async (userId) => {
     .populate(
       "product",
       "name price images averageRating isActive"
-    )
+    ).lean()
     .sort({ createdAt: -1 });
 };

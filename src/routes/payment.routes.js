@@ -1,14 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
-const {
-  createPayment,
-  refundPayment,
-} = require("../controllers/payment.controller");
-
-const {
-  paymentWebhook,
-} = require("../controllers/payment.webhook");
+const paymentController = require("../controllers/payment.controller");
 
 const { protect } = require("../middlewares/auth.middleware");
 const { authorizeRoles } = require("../middlewares/role.middleware");
@@ -22,24 +15,10 @@ const { createPaymentSchema } = require("../validations/payment.schema");
  * =========================
  */
 router.post(
-  "/",
+  "/create",
   protect,
   validate(createPaymentSchema),
-  createPayment
-);
-
-/**
- * =========================
- * PAYMENT GATEWAY WEBHOOK
- * =========================
- * ⚠️ NO AUTH
- * ⚠️ RAW BODY
- * ⚠️ ALWAYS 200 RESPONSE
- */
-router.post(
-  "/webhook",
-  express.raw({ type: "application/json" }),
-  paymentWebhook
+  paymentController.createPayment
 );
 
 /**
@@ -52,7 +31,7 @@ router.post(
   protect,
   authorizeRoles("admin"),
   validateObjectId,
-  refundPayment
+  paymentController.refundPayment
 );
 
 module.exports = router;

@@ -11,4 +11,8 @@ const loginSchema = z.object({
   password: z.string(),
 });
 
-module.exports = { registerSchema, loginSchema };
+const verifyOtpSchema = z.object({
+  userId: z.string().min(1, "User ID is required"),
+  otp: z.string().length(6, "OTP must be 6 digits"),
+});
+module.exports = { registerSchema, loginSchema , verifyOtpSchema};

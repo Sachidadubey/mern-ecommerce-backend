@@ -44,10 +44,10 @@ router.post(
 );
 
 // Refresh access token
-router.post(
-  "/refresh-token",
-  authController.refreshAccessToken
-);
+// router.post(
+//   "/refresh-token",
+//   authController.refreshAccessToken
+// );
 
 // Forgot password
 router.post(

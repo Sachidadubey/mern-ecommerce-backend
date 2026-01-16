@@ -9,16 +9,10 @@ const AppError = require("../utils/AppError");
  * USER
  */
 exports.createPayment = asyncHandler(async (req, res) => {
-  const { orderId, paymentMethod } = req.body;
-
-  if (!orderId || !paymentMethod) {
-    throw new AppError("orderId and paymentMethod are required", 400);
-  }
-
+  const { orderId } = req.body;
   const payment = await paymentService.createPaymentService(
     req.user._id,
     orderId,
-    paymentMethod
   );
 
   res.status(201).json({
@@ -35,22 +29,34 @@ exports.createPayment = asyncHandler(async (req, res) => {
  * GATEWAY → BACKEND
  * ⚠️ NEVER wrap webhook in asyncHandler
  */
-exports.verifyPayment = async (req, res) => {
-  try {
-    const result = await paymentService.verifyPaymentService(req.body);
+// exports.verifyPayment = async (req, res) => {
+//   try {
+//     const result = await paymentService.verifyPaymentService(req);
 
-    // Webhook must ALWAYS respond 200
-    return res.status(200).json({
-      received: true,
-      alreadyProcessed: result?.alreadyProcessed || false,
-    });
-  } catch (error) {
-    // ❗ Still return 200 to stop gateway retries
-    return res.status(200).json({
-      received: false,
-    });
+//     // Webhook must ALWAYS respond 200
+//     return res.status(200).json({
+//       received: true,
+//       alreadyProcessed: result?.alreadyProcessed || false,
+//     });
+//   } catch (error) {
+//     // ❗ Still return 200 to stop gateway retries
+//     return res.status(200).json({
+//       received: false,
+//     });
+//   }
+// };
+
+exports.razorpayWebhook = async (req, res) => {
+  try {
+    await paymentService.verifyPaymentService(req);
+  } catch (err) {
+    console.error("Webhook error:", err.message);
   }
+
+  res.sendStatus(200); // MUST
 };
+
+
 
 /**
  * =========================
