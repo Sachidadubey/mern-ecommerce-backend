@@ -78,19 +78,26 @@ exports.createPaymentService = async (userId, orderId) => {
 /**
  * WEBHOOK VERIFICATION
  */
+/**
+ * =========================
+ * RAZORPAY WEBHOOK
+ * =========================
+ */
 exports.verifyPaymentService = async (req) => {
-  const signature = req.headers["x-razorpay-signature"];
+  const rawBody = req.body.toString();
 
   const expectedSignature = crypto
     .createHmac("sha256", process.env.RAZORPAY_WEBHOOK_SECRET)
-    .update(req.body)
+    .update(rawBody)
     .digest("hex");
+
+  const signature = req.headers["x-razorpay-signature"];
 
   if (signature !== expectedSignature) {
     throw new Error("Invalid Razorpay signature");
   }
 
-  const event = JSON.parse(req.body.toString());
+  const event = JSON.parse(rawBody);
   const entity = event.payload?.payment?.entity;
   if (!entity) return;
 
@@ -100,34 +107,52 @@ exports.verifyPaymentService = async (req) => {
 
   if (!payment) return;
 
+  // Idempotency guard
   if (["SUCCESS", "FAILED"].includes(payment.status)) return;
 
+  // ================= FAILED =================
   if (event.event === "payment.failed") {
     payment.status = "FAILED";
+    payment.failureReason = "Gateway failure";
     await payment.save();
-    await cancelOrderAndRestoreStock(payment.order);
+
+    await Order.findByIdAndUpdate(payment.order, {
+      orderStatus: "CANCELLED",
+      paymentStatus: "FAILED",
+    });
+
     return;
   }
 
+  // ================= SUCCESS =================
   if (event.event === "payment.captured") {
+    const order = await Order.findById(payment.order);
+    if (!order) return;
+
+    // 🔥 STOCK REDUCTION ONLY HERE
+    for (const item of order.items) {
+      await Product.findByIdAndUpdate(item.product, {
+        $inc: { stock: -item.quantity },
+      });
+    }
+
     payment.status = "SUCCESS";
     payment.gatewayPaymentId = entity.id;
     payment.paidAt = new Date();
     await payment.save();
 
-   const order= await Order.findByIdAndUpdate(payment.order, {
-      paymentStatus: "PAID",
-      orderStatus: "CONFIRMED",
-    }, { new: true });
-    
-    //// 🔥 CLEAR CART HERE
-  await Cart.findOneAndUpdate(
-    { user: order.user },
-    { items: [] }
-  );
+    order.paymentStatus = "PAID";
+    order.orderStatus = "CONFIRMED";
+    order.paidAt = new Date();
+    await order.save();
+
+    // 🔥 CLEAR CART
+    await Cart.findOneAndUpdate(
+      { user: order.user },
+      { items: [] }
+    );
   }
 };
-
 
 /**
  * =========================
@@ -135,29 +160,23 @@ exports.verifyPaymentService = async (req) => {
  * =========================
  */
 exports.refundPaymentService = async (paymentId) => {
-  // 1️⃣ Payment fetch (no transaction yet)
   const payment = await Payment.findById(paymentId).populate("order");
-  if (!payment) throw new AppError("Payment not found", 404);
-
-  if (payment.status !== "SUCCESS") {
+  if (!payment || payment.status !== "SUCCESS") {
     throw new AppError("Refund not allowed", 400);
   }
 
-  /**
-   * 2️⃣ REAL GATEWAY REFUND (OUTSIDE TRANSACTION)
-   * ⚠️ External API should NEVER be inside DB transaction
-   */
-  // @ts-ignore
-  await razorpay.payments.refund(payment.gatewayPaymentId);
+  // 🔥 Gateway refund (outside transaction)
+  await new Promise((resolve, reject) => {
+    razorpay.payments.refund(payment.gatewayPaymentId, (err, refund) => {
+      if (err) return reject(err);
+      resolve(refund);
+    });
+  });
 
-  /**
-   * 3️⃣ DB TRANSACTION (ONLY DB OPERATIONS)
-   */
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    // 🔄 Restore stock
     for (const item of payment.order.items) {
       const product = await Product.findById(item.product).session(session);
       if (product) {
@@ -166,12 +185,10 @@ exports.refundPaymentService = async (paymentId) => {
       }
     }
 
-    // Update payment
     payment.status = "REFUNDED";
     payment.refundedAt = new Date();
     await payment.save({ session });
 
-    // Update order
     payment.order.orderStatus = "REFUNDED";
     payment.order.paymentStatus = "REFUNDED";
     await payment.order.save({ session });
@@ -184,4 +201,5 @@ exports.refundPaymentService = async (paymentId) => {
     throw err;
   }
 };
+
 

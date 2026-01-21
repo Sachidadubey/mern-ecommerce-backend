@@ -10,21 +10,22 @@ exports.cancelOrderAndRestoreStock = async (orderId) => {
     const order = await Order.findById(orderId).session(session);
     if (!order) return;
 
-    // idempotency
     if (order.orderStatus === "CANCELLED") {
       await session.commitTransaction();
       session.endSession();
       return;
     }
 
-    // 🔄 Restore stock
-       for (const item of order.items) {
-         const product = await Product.findById(item.product)
-         if (product) {
-           product.stock += item.quantity;
-           await product.save({ session });
-         }
-       }
+    // 🔐 Restore ONLY if payment was done
+    if (order.paymentStatus === "PAID") {
+      for (const item of order.items) {
+        const product = await Product.findById(item.product).session(session);
+        if (product) {
+          product.stock += item.quantity;
+          await product.save({ session });
+        }
+      }
+    }
 
     order.orderStatus = "CANCELLED";
     order.paymentStatus = "FAILED";
