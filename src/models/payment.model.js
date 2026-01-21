@@ -70,6 +70,10 @@ const paymentSchema = new mongoose.Schema(
       type: String,
     },
 
+    refundReason: {
+      type: String,
+    },
+
     /* =========================
        TIMESTAMPS
     ========================= */

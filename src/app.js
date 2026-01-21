@@ -3,6 +3,8 @@ const morgan = require("morgan");
 const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
+const mongoSanitize = require("express-mongo-sanitize");
+const cookieParser = require("cookie-parser");
 
 const AppError = require("./utils/AppError");
 const globalErrorHandler = require("./middlewares/errorMiddleware");
@@ -21,6 +23,9 @@ const wishlistRoutes = require("./routes/wishlist.routes");
 
 const app = express();
 
+// Trust proxy if behind a reverse proxy (production)
+app.set("trust proxy", 1);
+
 /* =========================
    SECURITY & BASIC MIDDLEWARES
 ========================= */
@@ -30,6 +35,7 @@ app.use(cors({
    origin: process.env.CLIENT_URL,
   credentials: true
 }));
+app.use(cookieParser());
 
 /* =========================
    🔴 RAZORPAY WEBHOOK (MUST BE FIRST)
@@ -44,41 +50,81 @@ app.post(
    BODY PARSER (AFTER WEBHOOK)
 ========================= */
 app.use(express.json({ limit: "10kb" }));
+app.use(express.urlencoded({ limit: "10kb", extended: true }));
+
+/* =========================
+   DATA SANITIZATION (Security)
+========================= */
+app.use(mongoSanitize()); // Prevent NoSQL injection
 
 /* =========================
    LOGGING
 ========================= */
 if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
+} else {
+  // Production logging
+  app.use(morgan("combined"));
 }
 
 /* =========================
-   RATE LIMITING
+   RATE LIMITING - General API
 ========================= */
 const limiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
+  windowMs: 60 * 60 * 1000, // 1 hour
   max: 100,
   standardHeaders: true,
   legacyHeaders: false,
+  message: "Too many requests, please try again later",
+  skip: (req) => process.env.NODE_ENV === "development", // Skip in development
+});
+
+/* =========================
+   AUTH RATE LIMITING (Stricter)
+========================= */
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 requests per 15 minutes
+  skipSuccessfulRequests: true, // Don't count successful requests
+  message: "Too many login attempts, please try again later",
+  skip: (req) => process.env.NODE_ENV === "development",
 });
 
 app.use("/api", limiter);
+app.post("/api/auth/login", authLimiter);
+app.post("/api/auth/register", authLimiter);
+app.post("/api/auth/forgot-password", authLimiter);
 
 /* =========================
    ROUTES
 ========================= */
 
 app.get("/", (req, res) => {
-  res.status(200).send("Server running. Payments powered by Razorpay.");
+  res.status(200).json({
+    success: true,
+    message: "E-commerce API Server",
+    version: "1.0.0",
+    powered: "Razorpay Payments",
+  });
 });
 
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
-app.use("/api/payment", paymentRoutes); // create payment etc
+app.use("/api/payment", paymentRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/wishlist", wishlistRoutes);
+
+/* =========================
+   HEALTH CHECK ENDPOINT
+========================= */
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "OK",
+    timestamp: new Date().toISOString(),
+  });
+});
 
 /* =========================
    404 HANDLER

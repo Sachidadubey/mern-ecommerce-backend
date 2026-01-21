@@ -129,28 +129,95 @@ exports.verifyPaymentService = async (req) => {
     const order = await Order.findById(payment.order);
     if (!order) return;
 
-    // 🔥 STOCK REDUCTION ONLY HERE
-    for (const item of order.items) {
-      await Product.findByIdAndUpdate(item.product, {
-        $inc: { stock: -item.quantity },
-      });
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      let hasNegativeStock = false;
+
+      // 🔥 STOCK REDUCTION ONLY HERE
+      for (const item of order.items) {
+        const product = await Product.findByIdAndUpdate(
+          item.product,
+          { $inc: { stock: -item.quantity } },
+          { new: true, session }
+        );
+
+        // ⚠️ CHECK FOR NEGATIVE STOCK
+        if (product.stock < 0) {
+          hasNegativeStock = true;
+          console.warn(
+            `❌ OVERSELLING DETECTED: Product ${product.name} stock: ${product.stock}`
+          );
+        }
+      }
+
+      // 🚨 If negative stock, immediately refund
+      if (hasNegativeStock) {
+        // Restore stock
+        for (const item of order.items) {
+          await Product.findByIdAndUpdate(
+            item.product,
+            { $inc: { stock: item.quantity } },
+            { session }
+          );
+        }
+
+        payment.status = "REFUNDED";
+        payment.refundReason = "Overselling - Auto refund";
+        payment.refundedAt = new Date();
+        await payment.save({ session });
+
+        order.paymentStatus = "REFUNDED";
+        order.orderStatus = "CANCELLED";
+        order.cancelReason = "Out of stock at payment time";
+        order.cancelledAt = new Date();
+        await order.save({ session });
+
+        await session.commitTransaction();
+        session.endSession();
+
+        // 🔥 TRIGGER GATEWAY REFUND (async, don't block)
+        razorpay.payments.refund(
+          entity.id,
+          { speed: "optimum" },
+          (err, refund) => {
+            if (err) {
+              console.error("❌ Refund failed:", err);
+            } else {
+              console.log("✅ Auto-refund processed:", refund.id);
+            }
+          }
+        );
+
+        return;
+      }
+
+      // ✅ Normal flow - stock is OK
+      payment.status = "SUCCESS";
+      payment.gatewayPaymentId = entity.id;
+      payment.paidAt = new Date();
+      await payment.save({ session });
+
+      order.paymentStatus = "PAID";
+      order.orderStatus = "CONFIRMED";
+      order.paidAt = new Date();
+      await order.save({ session });
+
+      // 🔥 CLEAR CART
+      await Cart.findOneAndUpdate(
+        { user: order.user },
+        { items: [] },
+        { session }
+      );
+
+      await session.commitTransaction();
+      session.endSession();
+    } catch (err) {
+      await session.abortTransaction();
+      session.endSession();
+      throw err;
     }
-
-    payment.status = "SUCCESS";
-    payment.gatewayPaymentId = entity.id;
-    payment.paidAt = new Date();
-    await payment.save();
-
-    order.paymentStatus = "PAID";
-    order.orderStatus = "CONFIRMED";
-    order.paidAt = new Date();
-    await order.save();
-
-    // 🔥 CLEAR CART
-    await Cart.findOneAndUpdate(
-      { user: order.user },
-      { items: [] }
-    );
   }
 };
 

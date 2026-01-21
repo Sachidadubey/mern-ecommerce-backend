@@ -3,6 +3,7 @@ const router = express.Router();
 
 const authController = require("../controllers/auth.controller");
 const validate = require("../middlewares/validate.middleware");
+const { protect } = require("../middlewares/auth.middleware");
 
 const {
   registerSchema,
@@ -43,11 +44,12 @@ router.post(
   authController.loginUser
 );
 
-// Refresh access token
-// router.post(
-//   "/refresh-token",
-//   authController.refreshAccessToken
-// );
+// Logout
+router.post(
+  "/logout",
+  protect,
+  authController.logout
+);
 
 // Forgot password
 router.post(
