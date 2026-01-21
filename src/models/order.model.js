@@ -7,29 +7,15 @@ const orderItemSchema = new mongoose.Schema(
       ref: "Product",
       required: true,
     },
-    name: {
-      type: String,
-      required: true, // snapshot
-    },
-    price: {
-      type: Number,
-      required: true, // snapshot
-      min: 0,
-    },
-    quantity: {
-      type: Number,
-      required: true,
-      min: 1,
-    },
+    name: { type: String, required: true },
+    price: { type: Number, required: true, min: 0 },
+    quantity: { type: Number, required: true, min: 1 },
   },
   { _id: false }
 );
 
 const orderSchema = new mongoose.Schema(
   {
-    /* =====================
-       USER
-    ===================== */
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -37,16 +23,9 @@ const orderSchema = new mongoose.Schema(
       index: true,
     },
 
-    /* =====================
-       ITEMS
-    ===================== */
     items: {
       type: [orderItemSchema],
       required: true,
-      validate: {
-        validator: (v) => v.length > 0,
-        message: "Order must have at least one item",
-      },
     },
 
     totalAmount: {
@@ -61,8 +40,8 @@ const orderSchema = new mongoose.Schema(
     orderStatus: {
       type: String,
       enum: [
-        "CREATED",
-        "PAID",
+        "PLACED",
+        "CONFIRMED",
         "SHIPPED",
         "DELIVERED",
         "CANCELLED",
@@ -82,32 +61,17 @@ const orderSchema = new mongoose.Schema(
       index: true,
     },
 
-    /* =====================
-       PAYMENT METADATA
-    ===================== */
     paymentProvider: {
       type: String,
       enum: ["razorpay", "stripe"],
     },
 
-    paymentOrderId: {
-      type: String, // razorpay_order_id / stripe_session_id
-    },
-
-    paymentId: {
-      type: String, // gateway payment id
-    },
-
-    paymentMethod: {
-      type: String, // upi / card / netbanking
-    },
+    paymentOrderId: String,
+    paymentId: String,
 
     paidAt: Date,
     refundedAt: Date,
 
-    /* =====================
-       ADDRESS (SNAPSHOT)
-    ===================== */
     address: {
       name: String,
       phone: String,
@@ -115,31 +79,12 @@ const orderSchema = new mongoose.Schema(
       city: String,
       state: String,
       pincode: String,
-      country: {
-        type: String,
-        default: "India",
-      },
-    },
-
-    /* =====================
-       AUDIT
-    ===================== */
-    createdBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
-    updatedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      country: { type: String, default: "India" },
     },
   },
   { timestamps: true }
 );
 
-/* =====================
-   INDEXES
-===================== */
 orderSchema.index({ user: 1, createdAt: -1 });
-orderSchema.index({ paymentOrderId: 1 }, { sparse: true });
 
 module.exports = mongoose.model("Order", orderSchema);

@@ -46,14 +46,13 @@ exports.createOrderService = async (userId, address) => {
         );
       }
 
-      // 🔒 Lock inventory
-      product.stock -= item.quantity;
-      await product.save({ session });
+      // ❌ STOCK REDUCTION REMOVED FROM HERE
+      // Stock will be reduced ONLY after payment success (webhook)
 
       orderItems.push({
         product: product._id,
         name: product.name,
-        price: product.price, // ✅ DB price only
+        price: product.price, // DB snapshot
         quantity: item.quantity,
       });
 
@@ -73,9 +72,6 @@ exports.createOrderService = async (userId, address) => {
       ],
       { session }
     );
-
-    // 🧹 Remove cart completely
-    // await Cart.deleteOne({ user: userId }).session(session);
 
     await session.commitTransaction();
     session.endSession();
