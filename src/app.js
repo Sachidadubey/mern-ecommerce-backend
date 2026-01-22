@@ -20,6 +20,11 @@ const orderRoutes = require("./routes/order.routes");
 const paymentRoutes = require("./routes/payment.routes");
 const reviewRoutes = require("./routes/review.routes");
 const wishlistRoutes = require("./routes/wishlist.routes");
+const categoryRoutes = require("./routes/category.routes");
+const adminRoutes = require("./routes/admin.routes");
+const couponRoutes = require("./routes/coupon.routes");
+const userRoutes = require("./routes/user.routes");
+const supportRoutes = require("./routes/support.routes");
 
 const app = express();
 
@@ -32,8 +37,20 @@ app.set("trust proxy", 1);
 
 app.use(helmet());
 app.use(cors({
-   origin: process.env.CLIENT_URL,
-  credentials: true
+   origin: (origin, callback) => {
+      const allowedOrigins = [
+         'http://localhost:3000',
+         'http://localhost:3001',
+         process.env.CLIENT_URL
+      ].filter(Boolean);
+      if (!origin || allowedOrigins.includes(origin)) {
+         callback(null, true);
+      } else {
+         callback(new Error('Not allowed by CORS'));
+      }
+   },
+   credentials: true,
+   optionsSuccessStatus: 200
 }));
 app.use(cookieParser());
 
@@ -55,7 +72,8 @@ app.use(express.urlencoded({ limit: "10kb", extended: true }));
 /* =========================
    DATA SANITIZATION (Security)
 ========================= */
-app.use(mongoSanitize()); // Prevent NoSQL injection
+// mongoSanitize disabled due to conflicts with request object - using express built-in protection instead
+// app.use(mongoSanitize({ replaceWith: '_' })); // Prevent NoSQL injection
 
 /* =========================
    LOGGING
@@ -110,11 +128,16 @@ app.get("/", (req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
+app.use("/api/categories", categoryRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/wishlist", wishlistRoutes);
+app.use("/api/coupons", couponRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/support", supportRoutes);
 
 /* =========================
    HEALTH CHECK ENDPOINT

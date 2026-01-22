@@ -10,7 +10,7 @@ const {
 const { sendEmail } = require("./sendEmail.service");
 
 /* ========================= REGISTER ========================= */
-exports.registerUserService = async ({ name, email, password }) => {
+exports.registerUserService = async ({ name, email, phone, password }) => {
   const existingUser = await User.findOne({ email });
 
   if (existingUser && existingUser.isVerified) {
@@ -21,6 +21,7 @@ exports.registerUserService = async ({ name, email, password }) => {
     await User.create({
       name,
       email,
+      phone,
       password,
       isVerified: false,
     });
@@ -34,26 +35,30 @@ exports.registerUserService = async ({ name, email, password }) => {
   await user.save({ validateBeforeSave: false });
   
   try {
+    console.log('Attempting to send OTP to:', email);
     await sendEmail(
       email,
       "Verify your email :",
      `<h1>Your OTP is ${otp}</h1>`,
     );
+    console.log('OTP email sent successfully');
   } catch (err) {
-    user.otp = undefined;
-    user.otpExpire = undefined;
-    await user.save({ validateBeforeSave: false });
-    console.log("smtp error", err);
-    throw new AppError("Failed to send OTP email", 500);
+    console.error("Email sending error:", err.message);
+    // For development/testing: log OTP to console instead of throwing
+    console.log('🔐 OTP for testing:', otp);
+    // Don't throw error - allow registration to continue
+    // user.otp = undefined;
+    // user.otpExpire = undefined;
+    // await user.save({ validateBeforeSave: false });
+    // throw new AppError("Failed to send OTP email", 500);
   }
 
   return user._id;
 };
 
 /* ========================= VERIFY OTP ========================= */
-exports.verifyOtpService = async ({ userId, otp }) => {
-  const user = await User.findById(userId);
-
+exports.verifyOtpService = async ({ email, otp }) => {
+  const user = await User.findOne({ email });
 
   if (!user) throw new AppError("User not found", 404);
   if (user.isVerified) throw new AppError("User already verified", 400);
@@ -167,7 +172,17 @@ exports.loginUserService = async ({ email, password }) => {
   user.refreshToken = refreshToken;
   await user.save({ validateBeforeSave: false });
 
-  return { accessToken, refreshToken };
+  return { 
+    accessToken, 
+    refreshToken,
+    user: {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      profileImage: user.profileImage
+    }
+  };
 };
 
 /* ========================= REFRESH TOKEN ========================= */

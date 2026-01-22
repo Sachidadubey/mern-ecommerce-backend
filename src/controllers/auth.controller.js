@@ -3,7 +3,9 @@ const authService = require("../services/auth.service");
 
 /* ================= REGISTER ================= */
 exports.registerUser = asyncHandler(async (req, res) => {
+  console.log('Register request received:', req.body);
   const userId = await authService.registerUserService(req.body);
+  console.log('User registered successfully:', userId);
 
   res.status(201).json({
     success: true,
@@ -34,7 +36,7 @@ exports.resendOtp = asyncHandler(async (req, res) => {
 
 /* ================= LOGIN ================= */
 exports.loginUser = asyncHandler(async (req, res) => {
-  const { accessToken, refreshToken } =
+  const { accessToken, refreshToken, user } =
     await authService.loginUserService(req.body);
 
   // send refresh token via httpOnly cookie
@@ -48,7 +50,16 @@ exports.loginUser = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     message: "Login successful",
-    accessToken,
+    data: {
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        profileImage: user.profileImage,
+      },
+      token: accessToken,
+    },
   });
 });
 

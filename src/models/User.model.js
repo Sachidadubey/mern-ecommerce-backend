@@ -55,8 +55,71 @@ const userSchema = new mongoose.Schema(
       select: false,
     },
     lastOtpSentAt: {
-      type:Date,
+      type: Date,
     },
+
+    /* ================= PROFILE INFO ================= */
+    avatar: {
+      url: String,
+      public_id: String,
+    },
+
+    phone: {
+      type: String,
+      trim: true,
+    },
+
+    addresses: [
+      {
+        type: String, // 'home', 'office', 'other'
+        street: String,
+        city: String,
+        state: String,
+        zipCode: String,
+        country: { type: String, default: "India" },
+        isDefault: { type: Boolean, default: false },
+        phone: String,
+      },
+    ],
+
+    /* ================= PREFERENCES ================= */
+    preferences: {
+      newsletter: { type: Boolean, default: false },
+      notifications: { type: Boolean, default: true },
+      twoFactorAuth: { type: Boolean, default: false },
+    },
+
+    /* ================= LOYALTY ================= */
+    loyaltyPoints: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    referralCode: {
+      type: String,
+      unique: true,
+      sparse: true,
+      index: true,
+    },
+
+    referredBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+
+    /* ================= STATUS ================= */
+    isBlocked: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    blockReason: String,
+
+    blockedAt: Date,
+
+    lastLoginAt: Date,
   },
   { timestamps: true }
 );

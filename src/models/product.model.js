@@ -27,18 +27,20 @@ const productSchema = new mongoose.Schema(
     },
 
     category: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
       required: [true, "Category is required"],
-      trim: true,
       index: true,
     },
 
-  images: [
-  {
-    url: { type: String, required: true },
-    public_id: { type: String, required: true },
-  },
-],
+    categoryName: String, // Denormalized for quick access
+
+    images: [
+      {
+        url: { type: String, required: true },
+        public_id: { type: String, required: true },
+      },
+    ],
 
     isActive: {
       type: Boolean,
@@ -68,6 +70,48 @@ const productSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+
+    /* ================= INVENTORY ================= */
+    lowStockThreshold: {
+      type: Number,
+      default: 10,
+    },
+
+    reorderQuantity: {
+      type: Number,
+      default: 50,
+    },
+
+    /* ================= SALES & DISCOUNT ================= */
+    originalPrice: {
+      type: Number,
+      min: 0,
+    },
+
+    discountPercentage: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
+    },
+
+    isOnSale: {
+      type: Boolean,
+      default: false,
+    },
+
+    saleStartDate: Date,
+
+    saleEndDate: Date,
+
+    /* ================= SALES TRACKING ================= */
+    totalSold: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    lastRestockDate: Date,
   },
   { timestamps: true }
 );
