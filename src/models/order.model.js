@@ -81,6 +81,49 @@ const orderSchema = new mongoose.Schema(
       pincode: String,
       country: { type: String, default: "India" },
     },
+
+    /* ================= SHIPPING ================= */
+    shippingStatus: {
+      type: String,
+      enum: ["NOT_SHIPPED", "SHIPPED", "DELIVERED"],
+      default: "NOT_SHIPPED",
+      index: true,
+    },
+
+    trackingNumber: String,
+
+    shippedAt: Date,
+
+    deliveredAt: Date,
+
+    shippedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User", // Admin who shipped
+    },
+
+    /* ================= CANCELLATION & REFUND ================= */
+    cancelReason: String,
+
+    cancelledAt: Date,
+
+    cancelledBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+
+    /* ================= DISCOUNT ================= */
+    couponCode: String,
+
+    discountAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    /* ================= NOTES ================= */
+    adminNotes: String,
+
+    customerNotes: String,
   },
   { timestamps: true }
 );
