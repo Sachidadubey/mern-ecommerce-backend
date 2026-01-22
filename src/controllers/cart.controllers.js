@@ -7,7 +7,10 @@ const cartService = require("../services/cart.service");
  * =========================
  */
 exports.addToCart = asyncHandler(async (req, res) => {
-  const cart = await cartService.addToCartService(req.user._id, req.body);
+  const {productId, quantity} = req.body;
+  const cart = await cartService.addToCartService(
+    req.user._id, productId, quantity
+  );
 
   res.status(200).json({
     success: true,
@@ -22,7 +25,7 @@ exports.addToCart = asyncHandler(async (req, res) => {
  * =========================
  */
 exports.getMyCart = asyncHandler(async (req, res) => {
-  const cart = await cartService.getCartService(req.user._id);
+  const cart = await cartService.getMyCartService(req.user._id);
 
   res.status(200).json({
     success: true,

@@ -1,6 +1,6 @@
 // centralized error handler -----
 const errorHandler = (err, req, res, next)=>{
-  console.log("error");
+  console.log(err);
 
   const statusCode = err.statusCode || 500;
   res.status(statusCode).json({
