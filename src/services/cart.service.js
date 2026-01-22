@@ -34,9 +34,16 @@ exports.addToCartService = async (userId, productId, quantity) => {
     throw new AppError("Product not found or inactive", 404);
   }
 
-  if (product.stock < 1) {
+  if (product.stock < 1 ) {
     throw new AppError("Product is out of stock", 400);
   }
+
+  if( quantity > product.stock) {
+    throw new AppError(
+      `Only ${product.stock} items available in stock`,
+      400
+    );
+  };
 
   let cart = await Cart.findOne({ user: userId });
 
@@ -50,7 +57,7 @@ exports.addToCartService = async (userId, productId, quantity) => {
 
   if (itemIndex > -1) {
     const newQty = cart.items[itemIndex].quantity + quantity;
-    cart.items[itemIndex].quantity = Math.min(newQty, product.stock);
+    cart.items[itemIndex].quantity = newQty;
     cart.items[itemIndex].price = product.price;
   } else {
     cart.items.push({
@@ -111,8 +118,14 @@ exports.updateCartItemService = async (userId, productId, quantity) => {
   if (!product || product.stock < 1) {
     throw new AppError("Product not available", 404);
   }
+   if (quantity > product.stock) {
+    throw new AppError(
+      `Only ${product.stock} items available in stock`,
+      400
+    );
+  };
 
-  cart.items[itemIndex].quantity = Math.min(quantity, product.stock);
+  cart.items[itemIndex].quantity = quantity;
   cart.items[itemIndex].price = product.price;
 
   return await recalcCart(cart);

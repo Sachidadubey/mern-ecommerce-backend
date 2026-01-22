@@ -23,7 +23,6 @@ exports.createProduct = asyncHandler(async (req, res) => {
 /**
  * =========================
  * GET ALL PRODUCTS
- * (PUBLIC / ADMIN)
  * =========================
  */
 exports.getAllProducts = asyncHandler(async (req, res) => {
@@ -44,7 +43,7 @@ exports.getAllProducts = asyncHandler(async (req, res) => {
  */
 exports.getSingleProduct = asyncHandler(async (req, res) => {
   const product = await productService.getSingleProductService(
-    req.params.id
+    req.params.productId // ✅ FIX
   );
 
   res.status(200).json({
@@ -60,9 +59,10 @@ exports.getSingleProduct = asyncHandler(async (req, res) => {
  */
 exports.updateProduct = asyncHandler(async (req, res) => {
   const product = await productService.updateProductService(
-    req.params.id,
+    req.params.productId, // ✅ FIX
     req.body,
-    req.user._id
+    req.user._id,
+    req.files // ✅ IMPORTANT
   );
 
   res.status(200).json({
@@ -78,12 +78,14 @@ exports.updateProduct = asyncHandler(async (req, res) => {
  * =========================
  */
 exports.deleteProduct = asyncHandler(async (req, res) => {
-  await productService.deleteProductService(
-    req.params.id,
+  const product=await productService.deleteProductService(
+    req.params.productId, // ✅ FIX
     req.user._id
   );
 
-  res.status(204).json({
+  res.status(200).json({
     success: true,
+    message: "Product deleted successfully",
+    product
   });
 });

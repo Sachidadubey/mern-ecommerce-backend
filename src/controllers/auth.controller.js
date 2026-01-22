@@ -65,7 +65,8 @@ exports.loginUser = asyncHandler(async (req, res) => {
 
 /* ================= FORGOT PASSWORD ================= */
 exports.forgotPassword = asyncHandler(async (req, res) => {
-  await authService.forgotPasswordService(req.body);
+  const {email}= req.body;
+  await authService.forgotPasswordService({ email });
 
   res.status(200).json({
     success: true,

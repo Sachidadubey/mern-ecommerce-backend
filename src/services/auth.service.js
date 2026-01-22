@@ -171,6 +171,11 @@ exports.loginUserService = async ({ email, password }) => {
 
   user.refreshToken = refreshToken;
   await user.save({ validateBeforeSave: false });
+  await sendEmail(
+    email,
+    "Login Notification",
+   `<h1>You have successfully logged in to anonymous server</h1>`,
+  );
 
   return { 
     accessToken, 
@@ -230,11 +235,12 @@ exports.forgotPasswordService = async ({ email }) => {
   await user.save({ validateBeforeSave: false });
 
   try {
-    await sendEmail({
-      to: user.email,
-      subject: "Reset Password OTP",
-      text: `Your OTP is ${otp}`,
-    });
+  await sendEmail(
+      email,
+      "Password Reset OTP",
+     `<h1>Your password reset OTP is ${otp}</h1>`,
+    );
+  console.log(`Password reset OTP email sent successfully otp: ${otp}`);
   } catch (err) {
     user.otp = undefined;
     user.otpExpire = undefined;
@@ -261,6 +267,11 @@ exports.resetPasswordService = async ({ email, otp, newPassword }) => {
   user.refreshToken = undefined; // force re-login
 
   await user.save({ validateBeforeSave: false });
+  await sendEmail(
+    email,
+    "Password Reset Successful",
+   `<h1>Your password has been reset successfully ${user.password} </h1>`,
+  );
 };
 
 /* ========================= LOGOUT ========================= */

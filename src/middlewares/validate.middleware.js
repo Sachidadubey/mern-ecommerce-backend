@@ -3,13 +3,16 @@ const { ZodError } = require("zod");
 const validate = (schema) => (req, res, next) => {
   try {
     if (!schema || typeof schema.parse !== "function") {
-      return next(); // schema missing → skip validation
+      return next();
     }
+    schema.parse({
+      body: req.body,
+      params: req.params,
+      query: req.query,
+    });
 
-    schema.parse(req.body); // validate only body
     next();
   } catch (err) {
-    // ✅ Only Zod validation errors
     if (err instanceof ZodError) {
       return res.status(400).json({
         success: false,
@@ -21,8 +24,7 @@ const validate = (schema) => (req, res, next) => {
       });
     }
 
-    // ❌ Any other unexpected error
-    return next(err);
+    next(err);
   }
 };
 

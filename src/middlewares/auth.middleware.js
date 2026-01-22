@@ -17,7 +17,8 @@ exports.protect = asyncHandler(async (req, res, next) => {
     throw new AppError("Not authorized, token missing", 401);
   }
 
-  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+console.log(process.env.ACCESS_TOKEN_SECRET );
+  const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
 
   const user = await User.findById(decoded.id).select("-password");
 

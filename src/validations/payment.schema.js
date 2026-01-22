@@ -2,7 +2,9 @@ const { z } = require("zod");
 const { objectId } = require("./common.schema");
 
 const createPaymentSchema = z.object({
-  orderId: objectId,
+  body: z.object({
+    orderId: objectId,
+  }),
 });
 
 module.exports = { createPaymentSchema };

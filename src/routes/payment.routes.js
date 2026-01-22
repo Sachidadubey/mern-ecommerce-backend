@@ -7,7 +7,7 @@ const { protect } = require("../middlewares/auth.middleware");
 const { authorizeRoles } = require("../middlewares/role.middleware");
 const validateObjectId = require("../middlewares/validateObjectId.middleware");
 const validate = require("../middlewares/validate.middleware");
-const { createPaymentSchema } = require("../validations/payment.schema");
+const { createPaymentSchema,verifyPaymentSchema } = require("../validations/payment.schema");
 
 /**
  * =========================
@@ -21,6 +21,14 @@ router.post(
   paymentController.createPayment
 );
 
+
+
+router.post(
+  "/verify",
+  protect,
+  validate(verifyPaymentSchema),
+  paymentController.verifyPayment
+);
 /**
  * =========================
  * ADMIN

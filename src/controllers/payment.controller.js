@@ -29,22 +29,27 @@ exports.createPayment = asyncHandler(async (req, res) => {
  * GATEWAY → BACKEND
  * ⚠️ NEVER wrap webhook in asyncHandler
  */
-// exports.verifyPayment = async (req, res) => {
-//   try {
-//     const result = await paymentService.verifyPaymentService(req);
+exports.verifyPayment = async (req, res) => {
+  try {
+    const result = await paymentService.manualVerifyPaymentService(req.body);
 
-//     // Webhook must ALWAYS respond 200
-//     return res.status(200).json({
-//       received: true,
-//       alreadyProcessed: result?.alreadyProcessed || false,
-//     });
-//   } catch (error) {
-//     // ❗ Still return 200 to stop gateway retries
-//     return res.status(200).json({
-//       received: false,
-//     });
-//   }
-// };
+    // Webhook must ALWAYS respond 200
+    // return res.status(200).json({
+    //   received: true,
+    //   alreadyProcessed: result?.alreadyProcessed || false,
+    // });
+
+    return res.status(200).json({
+      received: true,
+      message: result?.message || "Payment verified successfully",
+    });
+  } catch (error) {
+    // ❗ Still return 200 to stop gateway retries
+    return res.status(200).json({
+      received: false,
+    });
+  }
+};
 
 exports.razorpayWebhook = async (req, res) => {
   try {

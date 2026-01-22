@@ -102,7 +102,7 @@ supportTicketSchema.pre('save', async function (next) {
 })
 
 supportTicketSchema.index({ user: 1, createdAt: -1 })
-supportTicketSchema.index({ ticketId: 1 })
+// supportTicketSchema.index({ ticketId: 1 })
 supportTicketSchema.index({ status: 1 })
 supportTicketSchema.index({ priority: 1 })
 

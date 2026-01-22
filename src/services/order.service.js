@@ -11,13 +11,14 @@ const cancelOrderAndRestoreStock = require("./orderRecovery.service");
  * =========================
  */
 exports.createOrderService = async (userId, address) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  // session commented out to avoid transaction conflicts with Stripe webhook
+  // const session = await mongoose.startSession();
+  // session.startTransaction();
 
   try {
     const cart = await Cart.findOne({ user: userId })
       .populate("items.product")
-      .session(session);
+      // .session(session);
 
     if (!cart || cart.items.length === 0) {
       throw new AppError("Cart is empty", 400);
@@ -30,7 +31,8 @@ exports.createOrderService = async (userId, address) => {
       const product = await Product.findOne({
         _id: item.product._id,
         isActive: true,
-      }).session(session);
+      });
+        // .session(session);
 
       if (!product) {
         throw new AppError(
@@ -70,16 +72,16 @@ exports.createOrderService = async (userId, address) => {
           paymentStatus: "PENDING",
         },
       ],
-      { session }
+      // { session }
     );
 
-    await session.commitTransaction();
-    session.endSession();
+    // await session.commitTransaction();
+    // session.endSession();
 
     return order;
   } catch (err) {
-    await session.abortTransaction();
-    session.endSession();
+    // await session.abortTransaction();
+    // session.endSession();
     throw err;
   }
 };
@@ -129,6 +131,13 @@ exports.cancelOrderService = async (orderId, user) => {
     throw new AppError("Paid orders cannot be cancelled", 400);
   }
 
-  await cancelOrderAndRestoreStock(order._id);
+  if (order.orderStatus === "CANCELLED") {
+    throw new AppError("Order is already cancelled", 400);
+  } 
+  order.orderStatus = "CANCELLED";
+  order.paymentStatus = "FAILED";
+  await order.save(); 
+  return order;
+  
 };
 
