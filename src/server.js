@@ -8,8 +8,8 @@ const PORT = process.env.PORT || 5000;
 // 1️⃣ DB connect
 connectDb();
 
-// 2️⃣ Start cron jobs
-startCrons(); // 👈 CRON YAHAN
+// // 2️⃣ Start cron jobs
+// startCrons(); // 👈 CRON YAHAN
 
 // 3️⃣ Start server
 app.listen(PORT, () => {

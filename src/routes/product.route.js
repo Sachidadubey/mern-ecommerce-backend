@@ -19,10 +19,19 @@ const upload = require("../middlewares/upload.middleware");
 // Get all products
 router.get("/", productController.getAllProducts);
 
-// Get single product
+// 🔥 STATIC ROUTES FIRST
+router.get("/best-sellers", productController.getBestSellers);
+router.get("/top-rated", productController.getTopRatedProducts);
+router.get(
+  "/recommended/:productId",
+  validateObjectId(),
+  productController.getRecommendedProducts
+);
+
+// 🔥 DYNAMIC ROUTE LAST
 router.get(
   "/:productId",
-  validateObjectId,
+  validateObjectId(),
   productController.getSingleProduct
 );
 
@@ -42,7 +51,7 @@ router.post(
 // Update product
 router.put(
   "/:productId",
-  validateObjectId,
+  validateObjectId(),
   upload.array("images", 5),
   validate(updateProductSchema),
   productController.updateProduct
@@ -51,7 +60,7 @@ router.put(
 // Delete product (soft delete)
 router.delete(
   "/:productId",
-  validateObjectId,
+  validateObjectId(),
   productController.deleteProduct
 );
 

@@ -1,6 +1,24 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 
+const addressSchema = new mongoose.Schema(
+  {
+    type: {
+      type: String,
+      enum: ["home", "office", "other"],
+      default: "home",
+    },
+    street: { type: String, required: true },
+    city: { type: String, required: true },
+    state: { type: String, required: true },
+    zipCode: { type: String, required: true },
+    country: { type: String, default: "India" },
+    phone: { type: String, required: true },
+    isDefault: { type: Boolean, default: false },
+  },
+  { _id: true }
+);
+
 const userSchema = new mongoose.Schema(
   {
     name: {
@@ -37,28 +55,18 @@ const userSchema = new mongoose.Schema(
       default: false,
     },
 
-    otp: {
-      type: String,
-    },
-
-    otpExpire: {
-      type: Date,
-    },
-
-    otpAttempts: {
-      type: Number,
-      default: 0,
-    },
+    otp: String,
+    otpExpire: Date,
+    otpAttempts: { type: Number, default: 0 },
 
     refreshToken: {
       type: String,
       select: false,
     },
-    lastOtpSentAt: {
-      type: Date,
-    },
 
-    /* ================= PROFILE INFO ================= */
+    lastOtpSentAt: Date,
+
+    /* ================= PROFILE ================= */
     avatar: {
       url: String,
       public_id: String,
@@ -69,18 +77,10 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
 
-    addresses: [
-      {
-        type: String, // 'home', 'office', 'other'
-        street: String,
-        city: String,
-        state: String,
-        zipCode: String,
-        country: { type: String, default: "India" },
-        isDefault: { type: Boolean, default: false },
-        phone: String,
-      },
-    ],
+    addresses: {
+      type: [addressSchema],
+      default: [],
+    },
 
     /* ================= PREFERENCES ================= */
     preferences: {
@@ -116,9 +116,7 @@ const userSchema = new mongoose.Schema(
     },
 
     blockReason: String,
-
     blockedAt: Date,
-
     lastLoginAt: Date,
   },
   { timestamps: true }

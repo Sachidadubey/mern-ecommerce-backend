@@ -89,3 +89,34 @@ exports.deleteProduct = asyncHandler(async (req, res) => {
     product
   });
 });
+
+
+// best seller
+exports.getBestSellers = asyncHandler(async (req, res) => {
+  const products = await productService.getBestSellersService();
+  
+  res.status(200).json({
+    success: true,
+    count: products.length,
+    data: products,
+  });
+});
+// top rated products
+exports.getTopRatedProducts = asyncHandler(async (req, res) => {
+  const products = await productService.getTopRatedProductsService(); 
+  res.status(200).json({
+    success: true,
+    count: products.length,
+    data: products,
+  });
+});
+
+// recommended products
+exports.getRecommendedProducts = asyncHandler(async (req, res) => {
+  const products = await productService.getRecommendedProductsService(req.params.productId); 
+  res.status(200).json({
+    success: true,
+    count: products.length,
+    data: products,
+  });
+});

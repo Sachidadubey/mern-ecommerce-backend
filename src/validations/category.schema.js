@@ -18,8 +18,16 @@ const updateCategorySchema = z.object({
     isActive: z.boolean().optional(),
   }),
 });
+const getCategoriesQuerySchema = z.object({
+  query: z.object({
+    parentCategory: z.string().optional(),
+    withSubcategories: z.enum(["true", "false"]).optional(),
+  }),
+});
+
 
 module.exports = {
   createCategorySchema,
   updateCategorySchema,
+  getCategoriesQuerySchema,
 };

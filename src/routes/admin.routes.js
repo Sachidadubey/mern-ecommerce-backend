@@ -6,6 +6,7 @@ const { authorizeRoles } = require("../middlewares/role.middleware");
 const validateObjectId = require("../middlewares/validateObjectId.middleware");
 
 const adminController = require("../controllers/admin.controller");
+const { validate } = require("../models/order.model");
 
 router.use(protect);
 router.use(authorizeRoles("admin"));
@@ -34,29 +35,31 @@ router.get("/orders", adminController.getOrders);
 // Get single order
 router.get(
   "/orders/:id",
-  validateObjectId,
+  validateObjectId(),
   adminController.getSingleOrder
 );
 
 // Update order status
 router.patch(
   "/orders/:id/status",
-  validateObjectId,
+  validateObjectId(),
   adminController.updateOrderStatus
 );
 
 // Ship order
 router.patch(
   "/orders/:id/ship",
-  validateObjectId,
+  validateObjectId(),
   adminController.shipOrder
 );
 
 // Deliver order
 router.patch(
   "/orders/:id/deliver",
-  validateObjectId,
+  validateObjectId("id")  ,
   adminController.deliverOrder
 );
+
+
 
 module.exports = router;

@@ -29,26 +29,48 @@ const reviewSchema = new mongoose.Schema(
       maxlength: 500,
     },
 
+    // 🔥 Soft delete (never hard delete reviews)
     isDeleted: {
       type: Boolean,
       default: false,
       index: true,
     },
+    
+    status: {
+      type: String,
+      enum: ["PENDING", "APPROVED", "REJECTED"],
+      default: "PENDING",
+      index: true,
+    },
+
+    // 🔥 Optional but very useful
+    isVerifiedPurchase: {
+      type: Boolean,
+      default: false,
+    },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
 /* =========================
-   INDEXES (IMPORTANT)
+   INDEXES (VERY IMPORTANT)
 ========================= */
 
-// One review per user per product
+// ✅ One active review per user per product
 reviewSchema.index(
   { user: 1, product: 1 },
-  { unique: true }
+  {
+    unique: true,
+    partialFilterExpression: { isDeleted: false },
+  }
 );
 
-// Fast product reviews lookup
+// ✅ Fast lookup for product reviews
 reviewSchema.index({ product: 1, isDeleted: 1 });
+
+// ✅ Useful for admin moderation / analytics
+reviewSchema.index({ rating: 1 });
 
 module.exports = mongoose.model("Review", reviewSchema);

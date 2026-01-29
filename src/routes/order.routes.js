@@ -28,9 +28,9 @@ router.post("/", validate(createOrderSchema), createOrder);
 router.get("/my", getMyOrders);
 
 // Get single order
-router.get("/:id", validateObjectId, getSingleOrder);
+router.get("/:id", validateObjectId(), getSingleOrder);
 
 // Cancel order
-router.patch("/:id/cancel", validateObjectId, cancelOrder);
+router.patch("/:id/cancel", validateObjectId(), cancelOrder);
 
 module.exports = router;

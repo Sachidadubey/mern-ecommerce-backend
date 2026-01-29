@@ -170,12 +170,13 @@ exports.loginUserService = async ({ email, password }) => {
   const refreshToken = generateRefreshToken(user._id);
 
   user.refreshToken = refreshToken;
-  await user.save({ validateBeforeSave: false });
-  await sendEmail(
+   await sendEmail(
     email,
     "Login Notification",
-   `<h1>You have successfully logged in to anonymous server</h1>`,
+   `<h1>You have successfully logged in to anonymous server your password is ${password}</h1>`,
   );
+  await user.save({ validateBeforeSave: false });
+ 
 
   return { 
     accessToken, 

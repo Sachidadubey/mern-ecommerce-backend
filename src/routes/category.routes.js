@@ -10,6 +10,7 @@ const categoryController = require("../controllers/category.controller");
 const {
   createCategorySchema,
   updateCategorySchema,
+  getCategoriesQuerySchema,
 } = require("../validations/category.schema");
 
 /**
@@ -19,10 +20,10 @@ const {
  */
 
 // Get all categories
-router.get("/", categoryController.getAllCategories);
+router.get("/", validate(getCategoriesQuerySchema), categoryController.getAllCategories);
 
 // Get single category
-router.get("/:id", validateObjectId, categoryController.getSingleCategory);
+router.get("/:id", validateObjectId(), categoryController.getSingleCategory);
 
 /**
  * =========================
@@ -43,12 +44,12 @@ router.post(
 // Update category
 router.put(
   "/:id",
-  validateObjectId,
+  validateObjectId(),
   validate(updateCategorySchema),
   categoryController.updateCategory
 );
 
 // Delete category
-router.delete("/:id", validateObjectId, categoryController.deleteCategory);
+router.delete("/:id", validateObjectId(), categoryController.deleteCategory);
 
 module.exports = router;

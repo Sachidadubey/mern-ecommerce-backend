@@ -2,11 +2,9 @@ const Wishlist = require("../models/wishlist.model");
 const Product = require("../models/product.model");
 const AppError = require("../utils/AppError");
 
-/**
- * =========================
- * ADD TO WISHLIST (IDEMPOTENT)
- * =========================
- */
+/* =========================
+   ADD TO WISHLIST (IDEMPOTENT)
+========================= */
 exports.addToWishlistService = async (userId, productId) => {
   const product = await Product.findOne({
     _id: productId,
@@ -18,24 +16,22 @@ exports.addToWishlistService = async (userId, productId) => {
   }
 
   try {
-    return await Wishlist.create({
+    const item = await Wishlist.create({
       user: userId,
       product: productId,
     });
+    return { action: "added", item };
   } catch (err) {
-    // Duplicate add → idempotent behavior
     if (err.code === 11000) {
-      return null;
+      return { action: "exists" };
     }
     throw err;
   }
 };
 
-/**
- * =========================
- * REMOVE FROM WISHLIST
- * =========================
- */
+/* =========================
+   REMOVE FROM WISHLIST
+========================= */
 exports.removeFromWishlistService = async (userId, productId) => {
   const deleted = await Wishlist.findOneAndDelete({
     user: userId,
@@ -45,18 +41,33 @@ exports.removeFromWishlistService = async (userId, productId) => {
   if (!deleted) {
     throw new AppError("Product not found in wishlist", 404);
   }
+
+  return { action: "removed" };
 };
 
-/**
- * =========================
- * GET MY WISHLIST
- * =========================
- */
+/* =========================
+   GET MY WISHLIST
+========================= */
 exports.getMyWishlistService = async (userId) => {
-  return Wishlist.find({ user: userId })
-    .populate(
-      "product",
-      "name price images averageRating isActive"
-    ).lean()
-    .sort({ createdAt: -1 });
+  const wishlist = await Wishlist.find({ user: userId })
+    .populate({
+      path: "product",
+      match: { isActive: true },
+      select: "name price images averageRating",
+    })
+    .sort({ createdAt: -1 })
+    .lean();
+
+  return wishlist.filter(item => item.product);
+};
+
+/* =========================
+   CLEAR WISHLIST
+========================= */
+exports.clearWishlistService = async (userId) => {
+  const result = await Wishlist.deleteMany({ user: userId });
+
+  return {
+    clearedCount: result.deletedCount,
+  };
 };

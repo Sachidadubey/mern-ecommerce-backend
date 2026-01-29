@@ -44,22 +44,24 @@ exports.verifyPayment = async (req, res) => {
       message: result?.message || "Payment verified successfully",
     });
   } catch (error) {
+    console.log(error.message);
     // ❗ Still return 200 to stop gateway retries
     return res.status(200).json({
       received: false,
+      message: error.message,
     });
   }
 };
 
-exports.razorpayWebhook = async (req, res) => {
-  try {
-    await paymentService.verifyPaymentService(req);
-  } catch (err) {
-    console.error("Webhook error:", err.message);
-  }
+// exports.razorpayWebhook = async (req, res) => {
+//   try {
+//     await paymentService.verifyPaymentService(req);
+//   } catch (err) {
+//     console.error("Webhook error:", err.message);
+//   }
 
-  res.sendStatus(200); // MUST
-};
+//   res.sendStatus(200); // MUST
+// };
 
 
 

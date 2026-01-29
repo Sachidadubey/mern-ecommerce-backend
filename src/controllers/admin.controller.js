@@ -68,11 +68,9 @@ exports.updateOrderStatus = asyncHandler(async (req, res) => {
  * SHIP ORDER
  */
 exports.shipOrder = asyncHandler(async (req, res) => {
-  const { trackingNumber } = req.body;
 
   const order = await adminService.shipOrderService(
     req.params.id,
-    trackingNumber,
     req.user._id
   );
 
@@ -112,3 +110,7 @@ exports.getRevenueStats = asyncHandler(async (req, res) => {
     data: stats,
   });
 });
+
+
+
+

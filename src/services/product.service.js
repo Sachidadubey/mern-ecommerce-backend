@@ -198,3 +198,45 @@ exports.deleteProductService = async (productId, adminId) => {
   await product.save();
   return product;
 };
+
+
+// ================= GET BEST SELLERS =================
+exports.getBestSellersService = async () => {
+  const products = await Product.find({ isActive: true })
+    .sort({ totalSold : -1 })
+    .limit(10)
+    .lean();  
+  return products;
+};
+
+// ================= GET TOP RATED PRODUCTS =================
+exports.getTopRatedProductsService = async () => {
+  const products = await Product.find({
+    isActive: true,
+    reviewCount: { $gt: 3 },
+  })
+    .sort({ averageRating: -1 })
+    .limit(10)
+    .lean();
+  
+  return products;
+};
+
+// ================= GET RECOMMENDED PRODUCTS =================
+exports.getRecommendedProductsService = async (productId) => {
+  const product = await Product.findById(productId);
+  if (!product) {
+    throw new AppError("Product not found", 404);
+  }
+  const products = await Product.find({
+    category: product.category,
+    _id: { $ne: productId },
+    isActive: true, 
+  })
+    .limit(10)
+    .lean();
+  return products;
+};
+
+  
+
