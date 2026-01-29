@@ -7,13 +7,14 @@ const validateObjectId = require("../middlewares/validateObjectId.middleware");
 const validate = require("../middlewares/validate.middleware");
 
 const couponController = require("../controllers/coupon.controller");
-const { createCouponSchema, validateCouponSchema } = require("../validations/coupon.schema");
+const { createCouponSchema, validateCouponSchema, applyCouponSchema } = require("../validations/coupon.schema");
 
 /**
  * =========================
  * USER ROUTES
  * =========================
  */
+router.post("/apply", protect, validate(applyCouponSchema), couponController.applyCoupon);
 
 // Validate coupon
 router.post(
@@ -43,7 +44,7 @@ router.post(
 router.get("/", couponController.getAllCoupons);
 
 // Get single coupon
-router.get("/:id", validateObjectId, couponController.getSingleCoupon);
+router.get("/:id", validateObjectId(), couponController.getSingleCoupon);
 
 // Update coupon
 router.put(
@@ -54,6 +55,6 @@ router.put(
 );
 
 // Delete coupon
-router.delete("/:id", validateObjectId, couponController.deleteCoupon);
+router.delete("/:id", validateObjectId(), couponController.deleteCoupon);
 
 module.exports = router;

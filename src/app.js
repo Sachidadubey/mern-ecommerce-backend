@@ -57,11 +57,11 @@ app.use(cookieParser());
 /* =========================
    🔴 RAZORPAY WEBHOOK (MUST BE FIRST)
 ========================= */
-app.post(
-  "/api/payment/webhook",
-  express.raw({ type: "application/json" }),
-  paymentController.razorpayWebhook
-);
+// app.post(
+//   "/api/payment/webhook",
+//   express.raw({ type: "application/json" }),
+//   paymentController.razorpayWebhook
+// );
 
 /* =========================
    BODY PARSER (AFTER WEBHOOK)

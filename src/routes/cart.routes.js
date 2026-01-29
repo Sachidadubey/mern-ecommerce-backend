@@ -14,9 +14,9 @@ router.post("/", validate(addToCartSchema), cartController.addToCart);
 
 router.get("/", cartController.getMyCart);
 
-router.put("/item/:productId", validateObjectId, validate(updateCartItemSchema), cartController.updateCartItem);
+router.put("/item/:productId", validateObjectId(), validate(updateCartItemSchema), cartController.updateCartItem);
 
-router.delete("/item/:productId", validateObjectId, cartController.removeCartItem);
+router.delete("/item/:productId", validateObjectId(), cartController.removeCartItem);
 
 router.delete("/clear", cartController.clearCart);
 

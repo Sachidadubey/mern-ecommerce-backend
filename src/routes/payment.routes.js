@@ -15,7 +15,7 @@ const { createPaymentSchema,verifyPaymentSchema } = require("../validations/paym
  * =========================
  */
 router.post(
-  "/create",
+  "/",
   protect,
   validate(createPaymentSchema),
   paymentController.createPayment
@@ -38,7 +38,7 @@ router.post(
   "/:paymentId/refund",
   protect,
   authorizeRoles("admin"),
-  validateObjectId,
+  validateObjectId(),
   paymentController.refundPayment
 );
 

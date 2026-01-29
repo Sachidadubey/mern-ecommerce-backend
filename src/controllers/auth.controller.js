@@ -95,3 +95,28 @@ exports.logout = asyncHandler(async (req, res) => {
     message: "Logged out successfully",
   });
 });
+
+// refresh token
+
+
+exports.refreshToken = asyncHandler(async (req, res) => {
+  // OPTION 1: refresh token from cookie (recommended)
+  const refreshToken =
+    req.cookies?.refreshToken || req.body.refreshToken;
+
+  const tokens = await authService.refreshTokenService(refreshToken);
+
+  // If you are using cookies
+  res.cookie("refreshToken", tokens.refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+
+  return res.status(200).json({
+    success: true,
+    message: "Token refreshed successfully",
+    accessToken: tokens.accessToken,
+  });
+});

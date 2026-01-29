@@ -7,13 +7,48 @@ const {
   getMyReviewForProduct,
   deleteReview,
   getAllReviewsAdmin,
+  approveReview,
+  rejectReview,
+  getPendingReviewsService,
 } = require("../controllers/review.controller");
 
 const { protect } = require("../middlewares/auth.middleware");
 const { authorizeRoles } = require("../middlewares/role.middleware");
 const validateObjectId = require("../middlewares/validateObjectId.middleware");
 const validate = require("../middlewares/validate.middleware");
-const { createReviewSchema } = require("../validations/review.schema");
+
+const {
+  createOrUpdateReviewSchema,
+  getProductReviewsSchema,
+  getMyReviewForProductSchema,
+  deleteReviewSchema,
+  getAllReviewsAdminSchema,
+
+} = require("../validations/review.schema");
+
+/**
+ * =========================
+ * USER ROUTES (SPECIFIC FIRST)
+ * =========================
+ */
+
+// 🔥 My review for product (FIRST)
+router.get(
+  "/product/:productId/me",
+  protect,
+  validateObjectId(),
+  validate(getMyReviewForProductSchema),
+  getMyReviewForProduct
+);
+
+// 🔥 Add / update review
+router.post(
+  "/product/:productId",
+  protect,
+  validateObjectId(),
+  validate(createOrUpdateReviewSchema),
+  addOrUpdateReview
+);
 
 /**
  * =========================
@@ -21,40 +56,26 @@ const { createReviewSchema } = require("../validations/review.schema");
  * =========================
  */
 
-// Get reviews for a product (paginated)
+// 🔥 Public product reviews (AFTER)
 router.get(
   "/product/:productId",
-  validateObjectId,
+  validateObjectId(),
+  validate(getProductReviewsSchema),
   getProductReviews
 );
 
 /**
  * =========================
- * USER ROUTES
+ * USER / ADMIN ROUTES
  * =========================
  */
 
-// Add or update review
-router.post(
-  "/",
-  protect,
-  validate(createReviewSchema),
-  addOrUpdateReview
-);
-
-// Get my review for a product
-router.get(
-  "/product/:productId/me",
-  protect,
-  validateObjectId,
-  getMyReviewForProduct
-);
-
-// Delete review (owner or admin)
+// Delete review
 router.delete(
   "/:reviewId",
   protect,
-  validateObjectId,
+  validateObjectId(),
+  validate(deleteReviewSchema),
   deleteReview
 );
 
@@ -64,12 +85,35 @@ router.delete(
  * =========================
  */
 
-// Get all reviews (admin moderation)
 router.get(
-  "/admin",
+  "/",
   protect,
   authorizeRoles("admin"),
+  validate(getAllReviewsAdminSchema),
   getAllReviewsAdmin
 );
+router.get(
+  "/pending",
+  protect,
+  authorizeRoles("admin"),
+  getPendingReviewsService
+);
+
+router.patch(
+  "/:reviewId/approve",
+  protect,
+  authorizeRoles("admin"),
+  validateObjectId(),
+  approveReview
+);
+
+router.patch(
+  "/:reviewId/reject",
+  protect,
+  authorizeRoles("admin"),
+  validateObjectId(),
+  rejectReview
+);
+
 
 module.exports = router;

@@ -8,7 +8,8 @@ const reviewService = require("../services/review.service");
  * USER
  */
 exports.addOrUpdateReview = asyncHandler(async (req, res) => {
-  const { productId, rating, comment } = req.body;
+  const { rating, comment } = req.body;
+  const { productId } = req.params;
 
   const review = await reviewService.addOrUpdateReviewService(
     req.user._id,
@@ -91,5 +92,39 @@ exports.getAllReviewsAdmin = asyncHandler(async (req, res) => {
     success: true,
     count: reviews.length,
     data: reviews,
+  });
+});
+exports.getPendingReviewsService = asyncHandler(async (req, res) => {
+  const reviews = await reviewService.getPendingReviewsService();
+
+  res.status(200).json({
+    success: true,
+    count: reviews.length,
+    data: reviews,
+  });
+});
+
+exports.approveReview = asyncHandler(async (req, res) => {
+  const review = await reviewService.approveReviewService(
+    req.params.reviewId,
+    req.user._id
+  );
+
+  res.status(200).json({
+    success: true,
+    message: "Review approved",
+    data: review,
+  });
+});
+
+exports.rejectReview = asyncHandler(async (req, res) => {
+  const review = await reviewService.rejectReviewService(
+    req.params.reviewId,
+    req.user._id
+  );  
+  res.status(200).json({
+    success: true,
+    message: "Review rejected",
+    data: review,
   });
 });

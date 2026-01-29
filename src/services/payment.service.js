@@ -136,8 +136,8 @@ exports.verifyPaymentService = async (req) => {
     await payment.save();
 
     await Order.findByIdAndUpdate(payment.order, {
-      orderStatus: "CANCELLED",
-      paymentStatus: "FAILED",
+     paymentStatus: "FAILED",
+    orderStatus: "PAYMENT_FAILED", // ✅ allow retry
     });
 
     return;
@@ -175,7 +175,7 @@ exports.verifyPaymentService = async (req) => {
       for (const item of order.items) {
         const product = await Product.findByIdAndUpdate(
           item.product,
-          { $inc: { stock: -item.quantity } },
+          { $inc: { stock: -item.quantity, totalSold: +item.quantity } },
           { new: true, session }
         );
 
@@ -264,12 +264,12 @@ exports.verifyPaymentService = async (req) => {
 };
 
 
-
 exports.manualVerifyPaymentService = async ({
   razorpay_order_id,
   razorpay_payment_id,
   razorpay_signature,
 }) => {
+
   /* =========================
      1️⃣ VERIFY SIGNATURE
   ========================= */
@@ -308,7 +308,7 @@ exports.manualVerifyPaymentService = async ({
   }
 
   /* =========================
-     5️⃣ TRANSACTION (OPTIONAL)
+     5️⃣ TRANSACTION
   ========================= */
   const canUseTxn =
     mongoose.connection.client?.topology?.description?.type ===
@@ -319,23 +319,32 @@ exports.manualVerifyPaymentService = async ({
 
   try {
     /* =========================
-       6️⃣ REDUCE STOCK
+       6️⃣ STOCK CHECK (NO OVERSALE)
     ========================= */
     for (const item of order.items) {
       const product = await Product.findById(item.product).session(session);
+
       if (!product || product.stock < item.quantity) {
         throw new AppError(
-          `Insufficient stock for ${item.name}`,
+          `Insufficient stock for product ${item.product}`,
           400
         );
       }
-
-      product.stock -= item.quantity;
-      await product.save({ session });
     }
 
     /* =========================
-       7️⃣ UPDATE PAYMENT
+       7️⃣ STOCK REDUCTION
+    ========================= */
+    for (const item of order.items) {
+      await Product.findByIdAndUpdate(
+        item.product,
+        { $inc: { stock: -item.quantity, totalSold: item.quantity } },
+        { session }
+      );
+    }
+
+    /* =========================
+       8️⃣ UPDATE PAYMENT
     ========================= */
     payment.status = "SUCCESS";
     payment.gatewayPaymentId = razorpay_payment_id;
@@ -343,7 +352,7 @@ exports.manualVerifyPaymentService = async ({
     await payment.save({ session });
 
     /* =========================
-       8️⃣ UPDATE ORDER
+       9️⃣ UPDATE ORDER
     ========================= */
     order.paymentStatus = "PAID";
     order.orderStatus = "CONFIRMED";
@@ -351,7 +360,7 @@ exports.manualVerifyPaymentService = async ({
     await order.save({ session });
 
     /* =========================
-       9️⃣ CLEAR CART
+       🔟 CLEAR CART
     ========================= */
     await Cart.findOneAndUpdate(
       { user: order.user },
@@ -365,6 +374,7 @@ exports.manualVerifyPaymentService = async ({
     }
 
     return { success: true };
+
   } catch (err) {
     if (session) {
       await session.abortTransaction();

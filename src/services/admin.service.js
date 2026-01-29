@@ -4,6 +4,9 @@ const Product = require("../models/product.model");
 const Coupon = require("../models/coupon.model");
 const AppError = require("../utils/AppError");
 const AuditLog = require("../models/auditLog.model");
+const User = require("../models/User.model");
+const { createShipment } = require("../gateway/shiprocket.gateway");
+
 
 /**
  * GET ADMIN DASHBOARD STATS
@@ -22,7 +25,7 @@ exports.getDashboardStatsService = async () => {
     { $group: { _id: null, total: { $sum: "$totalAmount" } } },
   ]);
 
-  const totalUsers = await require("../models/User.model").countDocuments({
+  const totalUsers = await User.countDocuments({
     role: "user",
   });
 
@@ -189,8 +192,8 @@ exports.updateOrderStatusService = async (orderId, status, userId, notes) => {
 /**
  * SHIP ORDER (Admin)
  */
-exports.shipOrderService = async (orderId, trackingNumber, userId) => {
-  const order = await Order.findById(orderId);
+exports.shipOrderService = async (orderId,  adminId) => {
+  const order = await Order.findById(orderId).populate("user");
 
   if (!order) {
     throw new AppError("Order not found", 404);
@@ -199,11 +202,34 @@ exports.shipOrderService = async (orderId, trackingNumber, userId) => {
   if (order.paymentStatus !== "PAID") {
     throw new AppError("Cannot ship unpaid order", 400);
   }
+  if (order.shippingStatus === "SHIPPED") {
+    throw new AppError("Order is already shipped", 400);
+  }
+  if (order.shippingStatus === "DELIVERED") {
+    throw new AppError("Order is already delivered", 400);
+  }
+  // // 🔹 Call courier
+  // let shipment;
+  // try {
+  //   shipment = await createShipment(order);
+  //   }catch (error) {
+  //   throw new AppError(
+  //     `Failed to create shipment: ${error.response?.data?.message || error.message}`,
+  //     500
+  //   );
+  // }
+  const shipment = {
+  tracking_id: "TEMP-TRACK-123",
+};
+  
+
+
+  const trackingNumber = shipment.tracking_id;
 
   order.shippingStatus = "SHIPPED";
   order.trackingNumber = trackingNumber;
   order.shippedAt = new Date();
-  order.shippedBy = userId;
+  order.shippedBy = adminId;
   order.orderStatus = "SHIPPED";
 
   await order.save();
@@ -226,7 +252,7 @@ exports.shipOrderService = async (orderId, trackingNumber, userId) => {
     action: "ORDER_SHIPPED",
     resource: "ORDER",
     resourceId: orderId,
-    userId,
+    userId: adminId,
     userRole: "admin",
     changes: { after: { trackingNumber, shippedAt: order.shippedAt } },
   });
@@ -246,6 +272,9 @@ exports.deliverOrderService = async (orderId, userId) => {
 
   if (order.shippingStatus !== "SHIPPED") {
     throw new AppError("Order is not shipped yet", 400);
+  }
+  if( order.shippingStatus === "DELIVERED") {
+    throw new AppError("Order is already delivered", 400);
   }
 
   order.shippingStatus = "DELIVERED";
@@ -324,3 +353,5 @@ exports.getRevenueStatsService = async (days = 30) => {
 
   return { dailyRevenue, topProducts };
 };
+
+

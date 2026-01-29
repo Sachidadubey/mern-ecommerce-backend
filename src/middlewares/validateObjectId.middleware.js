@@ -1,15 +1,30 @@
 const mongoose = require("mongoose");
 const AppError = require("../utils/AppError");
 
-module.exports = (req, res, next) => {
-  const id =
-    req.params.productId ||
-    req.params.id ||
-    req.params.cartId;
+module.exports = (paramName) => {
+  return (req, res, next) => {
+    let id;
 
-  if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-    throw new AppError("Invalid ID format", 400);
-  }
+    if (paramName) {
+      id = req.params?.[paramName];
+    } else {
+      id =
+        req.params?.productId ||
+        req.params?.id ||
+        req.params?.reviewId ||
+        req.params?.orderId ||
+        req.params?.cartId;
+    }
 
-  next();
+    // 🔥 IMPORTANT FIX
+    if (!id) {
+      return next(new AppError("ID is required", 400));
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return next(new AppError("Invalid ID format", 400));
+    }
+
+    next(); // ✅ request lifecycle continues
+  };
 };

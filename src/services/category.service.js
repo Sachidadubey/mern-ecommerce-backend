@@ -100,26 +100,41 @@ exports.updateCategoryService = async (categoryId, updateData, userId) => {
     throw new AppError("Category not found", 404);
   }
 
-  const oldData = category.toObject();
+  let isModified = false;
 
-  // Update fields
-  Object.assign(category, updateData);
+  // Check field-by-field changes
+  Object.keys(updateData).forEach((key) => {
+    if (
+      updateData[key] !== undefined &&
+      category[key] !== updateData[key]
+    ) {
+      category[key] = updateData[key];
+      isModified = true;
+    }
+  });
+
+  if (!isModified) {
+    throw new AppError("No changes detected", 400);
+  }
+
   category.updatedBy = userId;
-
   await category.save();
 
-  // Log audit
+  // Audit log only if changed
   await AuditLog.create({
     action: "CATEGORY_UPDATED",
     resource: "CATEGORY",
     resourceId: categoryId,
     userId,
     userRole: "admin",
-    changes: { before: oldData, after: category.toObject() },
+    changes: {
+      after: updateData,
+    },
   });
 
   return category;
 };
+
 
 /**
  * DELETE CATEGORY (Soft Delete)

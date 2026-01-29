@@ -87,3 +87,22 @@ exports.validateCoupon = asyncHandler(async (req, res) => {
     data: result,
   });
 });
+
+/**
+ * APPLY COUPON (User)
+ */
+exports.applyCoupon = asyncHandler(async (req, res) => {
+  const { code, orderId } = req.body;
+
+  const coupon = await couponService.applyCouponService(
+    code,
+    orderId,
+    req.user._id
+  );
+
+  res.status(200).json({
+    success: true,
+    message: "Coupon applied successfully",
+    data: coupon,
+  });
+});

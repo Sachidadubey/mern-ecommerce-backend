@@ -50,14 +50,14 @@ router.get("/", userController.getAllUsers);
 // Update user role
 router.patch(
   "/:id/role",
-  validateObjectId,
+  validateObjectId(),
   userController.updateUserRole
 );
 
 // Block user
-router.patch("/:id/block", validateObjectId, userController.blockUser);
+router.patch("/:id/block", validateObjectId(), userController.blockUser);
 
 // Unblock user
-router.patch("/:id/unblock", validateObjectId, userController.unblockUser);
+router.patch("/:id/unblock", validateObjectId(), userController.unblockUser);
 
 module.exports = router;
