@@ -1,5 +1,6 @@
 const asyncHandler = require("../utils/asyncHandler");
 const authService = require("../services/auth.service");
+const { email } = require("zod");
 
 /* ================= REGISTER ================= */
 exports.registerUser = asyncHandler(async (req, res) => {
@@ -16,17 +17,21 @@ exports.registerUser = asyncHandler(async (req, res) => {
 
 /* ================= VERIFY OTP ================= */
 exports.verifyOtp = asyncHandler(async (req, res) => {
-  await authService.verifyOtpService(req.body);
+  const { email, otp } = req.body;
+  const result =
+  await authService.verifyOtpService({ email, otp });
 
   res.status(200).json({
     success: true,
-    message: "Email verified successfully",
+    message: "logged in successfully",
+    data: result,
   });
 });
 
 /* ================= RESEND OTP ================= */
 exports.resendOtp = asyncHandler(async (req, res) => {
-  await authService.resendOtpService(req.body);
+  const email =req.body.email;
+  await authService.resendOtpService({ email });
 
   res.status(200).json({
     success: true,

@@ -1,0 +1,22 @@
+exports.CHAT_STATUS = {
+  OPEN: "OPEN",
+  ASSIGNED: "ASSIGNED",
+  RESOLVED: "RESOLVED",
+  CLOSED: "CLOSED",
+};
+
+exports.TICKET_STATUS = {
+  OPEN: "OPEN",
+  IN_PROGRESS: "IN_PROGRESS",
+  RESOLVED: "RESOLVED",
+  CLOSED: "CLOSED",
+};
+
+exports.TICKET_PRIORITY = ["LOW", "MEDIUM", "HIGH"];
+exports.TICKET_CATEGORY = [
+  "GENERAL",
+  "TECHNICAL",  
+  "BILLING",
+  "ACCOUNT",
+  "OTHER",
+];

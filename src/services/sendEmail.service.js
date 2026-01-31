@@ -3,7 +3,7 @@ const transporter = require("../config/email");
 exports.sendEmail = async (to, subject, html) => {
   try {
     const mailOptions = {
-      from: `"MyApp Support" <${process.env.SMTP_EMAIL}>`,
+      from: `"e-comm backend by Ankush" <${process.env.SMTP_EMAIL}>`,
       to,
       subject,
       html,
