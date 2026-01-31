@@ -120,8 +120,8 @@ exports.verifyOtpService = async ({ email, otp }) => {
   };
 };
 /* ========================= RESEND OTP ========================= */
-exports.resendOtpService = async ({ userId }) => {
-  const user = await User.findById(userId);
+exports.resendOtpService = async ({ email }) => {
+  const user = await User.findOne({ email });
 
   if (!user) throw new AppError("User not found", 404);
   if (user.isVerified) throw new AppError("User already verified", 400);
@@ -142,11 +142,11 @@ exports.resendOtpService = async ({ userId }) => {
   await user.save({ validateBeforeSave: false });
 
   try {
-    await sendEmail({
-      to: user.email,
-      subject: "Resend OTP",
-      text: `Your OTP is ${otp}`,
-    });
+ await sendEmail(
+  user.email,
+  "Resend OTP",
+  `<h1>Your OTP is ${otp}</h1>`
+);
   } catch (err) {
     user.otp = undefined;
     user.otpExpire = undefined;

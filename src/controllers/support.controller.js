@@ -1,506 +1,158 @@
 const asyncHandler = require("../utils/asyncHandler");
 const Chat = require("../models/chat.model");
 const SupportTicket = require("../models/supportTicket.model");
+const service = require("../services/support.services");
 
-// ===== CHAT OPERATIONS =====
+/* ========== CHAT ========== */
 
 exports.startChat = asyncHandler(async (req, res) => {
-  const { subject, category } = req.body;
-  const userId = req.user._id;
-
-  const chat = await Chat.create({
-    user: userId,
-    subject,
-    category: category || "OTHER",
-    messages: [
-      {
-        sender: "user",
-        senderName: req.user.name,
-        senderId: userId,
-        message: subject,
-      },
-    ],
+  const chat = await service.createChat({
+    user: req.user,
+    subject: req.body.subject,
+    category: req.body.category,
   });
-
-  await chat.populate("user", "name email");
-
-  res.status(201).json({
-    success: true,
-    data: chat,
-    message: "Chat started successfully",
-  });
-});
-
-exports.sendMessage = asyncHandler(async (req, res) => {
-  const { chatId } = req.params;
-  const { message, attachments } = req.body;
-  const userId = req.user._id;
-
-  const chat = await Chat.findById(chatId);
-  if (!chat) {
-    return res.status(404).json({ success: false, message: "Chat not found" });
-  }
-
-  if (chat.user.toString() !== userId.toString() && req.user.role !== "admin") {
-    return res.status(403).json({ success: false, message: "Not authorized" });
-  }
-
-  chat.messages.push({
-    sender: "user",
-    senderName: req.user.name,
-    senderId: userId,
-    message,
-    attachments: attachments || [],
-  });
-
-  chat.updatedAt = new Date();
-  await chat.save();
-
-  res.status(200).json({
-    success: true,
-    data: chat,
-    message: "Message sent successfully",
-  });
+  res.status(201).json({ success: true, data: chat });
 });
 
 exports.getUserChats = asyncHandler(async (req, res) => {
-  const userId = req.user._id;
-  const { limit = 10, page = 1 } = req.query;
-
-  const chats = await Chat.find({ user: userId })
-    .populate("user", "name email")
-    .populate("supportAgent", "name email")
-    .sort({ updatedAt: -1 })
-    .limit(parseInt(limit))
-    .skip((parseInt(page) - 1) * parseInt(limit));
-
-  const total = await Chat.countDocuments({ user: userId });
-
-  res.status(200).json({
-    success: true,
-    data: { chats, total },
-    message: "Chats fetched successfully",
-  });
+  const chats = await Chat.find({ user: req.user._id });
+  res.json({ success: true, data: chats });
 });
 
 exports.getChatById = asyncHandler(async (req, res) => {
-  const { chatId } = req.params;
-  const userId = req.user._id;
+  const chat = await Chat.findById(req.params.chatId);
+  if (!chat) return res.status(404).json({ message: "Chat not found" });
+  if (chat.user.toString() !== req.user._id.toString() && req.user.role !== "admin")
+    return res.status(403).json({ message: "Forbidden" });
+  res.json({ success: true, data: chat });
+});
 
-  const chat = await Chat.findById(chatId)
-    .populate("user", "name email phone")
-    .populate("supportAgent", "name email");
-
-  if (!chat) {
-    return res.status(404).json({ success: false, message: "Chat not found" });
-  }
-
-  if (chat.user.toString() !== userId.toString() && req.user.role !== "admin") {
-    return res.status(403).json({ success: false, message: "Not authorized" });
-  }
-
-  res.status(200).json({
-    success: true,
-    data: chat,
-    message: "Chat retrieved successfully",
+exports.sendMessage = asyncHandler(async (req, res) => {
+  const  chatId= req.params.chatId;
+  const chat = await Chat.findById(chatId);
+  const updated = await service.addChatMessage({
+    chat,
+    user: req.user,
+    message: req.body.message,
+    attachments: req.body.attachments,
   });
+  res.json({ success: true, data: updated });
 });
 
 exports.closeChat = asyncHandler(async (req, res) => {
-  const { chatId } = req.params;
-  const { rating, feedback } = req.body;
-  const userId = req.user._id;
-
-  const chat = await Chat.findById(chatId);
-  if (!chat) {
-    return res.status(404).json({ success: false, message: "Chat not found" });
-  }
-
-  if (chat.user.toString() !== userId.toString()) {
-    return res.status(403).json({ success: false, message: "Not authorized" });
-  }
-
-  chat.status = "CLOSED";
-  chat.resolvedAt = new Date();
-  if (rating) chat.rating = rating;
-  if (feedback) chat.feedback = feedback;
-
-  await chat.save();
-
-  res.status(200).json({
-    success: true,
-    data: chat,
-    message: "Chat closed successfully",
+  const chat = await Chat.findById(req.params.chatId);
+  const closed = await service.closeChat({
+    chat,
+    rating: req.body.rating,
+    feedback: req.body.feedback,
   });
+  res.json({ success: true, data: closed });
 });
 
-// ===== ADMIN CHAT OPERATIONS =====
+/* ========== ADMIN CHAT ========== */
 
 exports.getAllChats = asyncHandler(async (req, res) => {
-  const { status, limit = 20, page = 1 } = req.query;
-
-  let filter = {};
-  if (status) filter.status = status;
-
-  const chats = await Chat.find(filter)
-    .populate("user", "name email phone")
-    .populate("supportAgent", "name email")
-    .sort({ createdAt: -1 })
-    .limit(parseInt(limit))
-    .skip((parseInt(page) - 1) * parseInt(limit));
-
-  const total = await Chat.countDocuments(filter);
-
-  res.status(200).json({
-    success: true,
-    data: { chats, total },
-    message: "All chats fetched",
-  });
+  const chats = await Chat.find();
+  res.json({ success: true, data: chats });
 });
 
-exports.assignChatToAgent = asyncHandler(async (req, res) => {
-  const { chatId } = req.params;
-  const { agentId } = req.body;
-
-  const chat = await Chat.findByIdAndUpdate(
-    chatId,
-    {
-      supportAgent: agentId,
-      status: "ASSIGNED",
-    },
-    { new: true }
-  ).populate("supportAgent", "name email");
-
-  if (!chat) {
-    return res.status(404).json({ success: false, message: "Chat not found" });
-  }
-
-  res.status(200).json({
-    success: true,
-    data: chat,
-    message: "Chat assigned to agent",
-  });
+exports.assignChat = asyncHandler(async (req, res) => {
+  const chat = await Chat.findById(req.params.chatId);
+  const updated = await service.assignChat({ chat, agentId: req.body.agentId });
+  res.json({ success: true, data: updated });
 });
 
 exports.addAdminMessage = asyncHandler(async (req, res) => {
-  const { chatId } = req.params;
-  const { message, attachments } = req.body;
-
-  const chat = await Chat.findById(chatId);
-  if (!chat) {
-    return res.status(404).json({ success: false, message: "Chat not found" });
-  }
-
-  chat.messages.push({
-    sender: "agent",
-    senderName: req.user.name,
-    senderId: req.user._id,
-    message,
-    attachments: attachments || [],
+  const chat = await Chat.findById(req.params.chatId);
+  const updated = await service.addChatMessage({
+    chat,
+    user: req.user,
+    message: req.body.message,
   });
-
-  if (chat.status !== "RESOLVED" && chat.status !== "CLOSED") {
-    chat.status = "ASSIGNED";
-  }
-
-  await chat.save();
-
-  res.status(200).json({
-    success: true,
-    data: chat,
-    message: "Admin message added successfully",
-  });
+  res.json({ success: true, data: updated });
 });
 
-exports.resolvChat = asyncHandler(async (req, res) => {
-  const { chatId } = req.params;
-  const { resolutionMessage } = req.body;
-
-  const chat = await Chat.findById(chatId);
-  if (!chat) {
-    return res.status(404).json({ success: false, message: "Chat not found" });
-  }
-
-  if (resolutionMessage) {
-    chat.messages.push({
-      sender: "agent",
-      senderName: req.user.name,
-      senderId: req.user._id,
-      message: resolutionMessage,
-    });
-  }
-
-  chat.status = "RESOLVED";
-  chat.resolvedAt = new Date();
-  await chat.save();
-
-  res.status(200).json({
-    success: true,
-    data: chat,
-    message: "Chat resolved successfully",
-  });
+exports.resolveChat = asyncHandler(async (req, res) => {
+  const chat = await Chat.findById(req.params.chatId);
+  const resolved = await service.resolveChat({ chat, admin: req.user });
+  res.json({ success: true, data: resolved });
 });
 
-// ===== SUPPORT TICKETS =====
+/* ========== TICKET ========== */
 
 exports.createTicket = asyncHandler(async (req, res) => {
-  const { title, description, category, priority, orderId, attachments } =
-    req.body;
-  const userId = req.user._id;
-
-  const ticket = await SupportTicket.create({
-    user: userId,
-    order: orderId,
-    title,
-    description,
-    category: category || "GENERAL_INQUIRY",
-    priority: priority || "MEDIUM",
-    attachments: attachments || [],
+  const ticket = await service.createTicket({
+    user: req.user._id,
+    title: req.body.title,
+    description: req.body.description,
+    priority: req.body.priority,
+    category: req.body.category,
   });
-
-  await ticket.populate("user", "name email phone");
-
-  res.status(201).json({
-    success: true,
-    data: ticket,
-    message: "Support ticket created successfully",
-  });
+  res.status(201).json({ success: true, data: ticket });
 });
 
 exports.getUserTickets = asyncHandler(async (req, res) => {
-  const userId = req.user._id;
-  const { limit = 10, page = 1, status } = req.query;
-
-  let filter = { user: userId };
-  if (status) filter.status = status;
-
-  const tickets = await SupportTicket.find(filter)
-    .populate("user", "name email")
-    .populate("order", "orderStatus totalAmount")
-    .sort({ createdAt: -1 })
-    .limit(parseInt(limit))
-    .skip((parseInt(page) - 1) * parseInt(limit));
-
-  const total = await SupportTicket.countDocuments(filter);
-
-  res.status(200).json({
-    success: true,
-    data: { tickets, total },
-    message: "User tickets fetched",
-  });
+  const tickets = await SupportTicket.find({ user: req.user._id });
+  res.json({ success: true, data: tickets });
 });
 
 exports.getTicketById = asyncHandler(async (req, res) => {
-  const { ticketId } = req.params;
-  const userId = req.user._id;
-
-  const ticket = await SupportTicket.findById(ticketId)
-    .populate("user", "name email phone")
-    .populate("order", "orderStatus items totalAmount")
-    .populate("assignedTo", "name email");
-
-  if (!ticket) {
-    return res.status(404).json({ success: false, message: "Ticket not found" });
-  }
-
-  if (ticket.user.toString() !== userId.toString() && req.user.role !== "admin") {
-    return res.status(403).json({ success: false, message: "Not authorized" });
-  }
-
-  res.status(200).json({
-    success: true,
-    data: ticket,
-    message: "Ticket retrieved successfully",
-  });
+  const ticket = await SupportTicket.findById(req.params.ticketId);
+  if (!ticket) return res.status(404).json({ message: "Not found" });
+  res.json({ success: true, data: ticket });
 });
 
 exports.addTicketResponse = asyncHandler(async (req, res) => {
-  const { ticketId } = req.params;
-  const { response, attachments } = req.body;
-  const userId = req.user._id;
-
-  const ticket = await SupportTicket.findById(ticketId);
-  if (!ticket) {
-    return res.status(404).json({ success: false, message: "Ticket not found" });
-  }
-
-  if (ticket.user.toString() !== userId.toString() && req.user.role !== "admin") {
-    return res.status(403).json({ success: false, message: "Not authorized" });
-  }
-
-  ticket.responses.push({
-    respondBy: userId,
-    respondByRole: req.user.role,
-    response,
-    attachments: attachments || [],
+  const ticket = await SupportTicket.findById(req.params.ticketId);
+  const updated = await service.addTicketResponse({
+    ticket,
+    user: req.user,
+    response: req.body.response,
   });
-
-  ticket.updatedAt = new Date();
-  await ticket.save();
-
-  res.status(200).json({
-    success: true,
-    data: ticket,
-    message: "Response added successfully",
-  });
-});
-
-exports.updateTicketStatus = asyncHandler(async (req, res) => {
-  const { ticketId } = req.params;
-  const { status, resolutionType, resolutionNotes } = req.body;
-
-  const ticket = await SupportTicket.findById(ticketId);
-  if (!ticket) {
-    return res.status(404).json({ success: false, message: "Ticket not found" });
-  }
-
-  ticket.status = status;
-  ticket.updatedAt = new Date();
-
-  if (status === "RESOLVED" && resolutionType) {
-    ticket.resolution = {
-      resolutionType,
-      notes: resolutionNotes,
-      resolvedAt: new Date(),
-      resolvedBy: req.user._id,
-    };
-  }
-
-  await ticket.save();
-
-  res.status(200).json({
-    success: true,
-    data: ticket,
-    message: "Ticket status updated",
-  });
+  res.json({ success: true, data: updated });
 });
 
 exports.rateTicket = asyncHandler(async (req, res) => {
-  const { ticketId } = req.params;
-  const { rating, feedback } = req.body;
-  const userId = req.user._id;
-
-  const ticket = await SupportTicket.findById(ticketId);
-  if (!ticket) {
-    return res.status(404).json({ success: false, message: "Ticket not found" });
-  }
-
-  if (ticket.user.toString() !== userId.toString()) {
-    return res.status(403).json({ success: false, message: "Not authorized" });
-  }
-
+  const ticket = await SupportTicket.findById(req.params.ticketId);
   ticket.satisfaction = {
-    rating,
-    feedback,
-    ratedAt: new Date(),
+    rating: req.body.rating,
+    feedback: req.body.feedback,
   };
-
   await ticket.save();
-
-  res.status(200).json({
-    success: true,
-    data: ticket,
-    message: "Ticket rated successfully",
-  });
+  res.json({ success: true, data: ticket });
 });
 
-// ===== ADMIN TICKET OPERATIONS =====
+/* ========== ADMIN TICKET ========== */
 
 exports.getAllTickets = asyncHandler(async (req, res) => {
-  const { status, priority, limit = 20, page = 1 } = req.query;
-
-  let filter = {};
-  if (status) filter.status = status;
-  if (priority) filter.priority = priority;
-
-  const tickets = await SupportTicket.find(filter)
-    .populate("user", "name email phone")
-    .populate("assignedTo", "name email")
-    .sort({ priority: 1, createdAt: -1 })
-    .limit(parseInt(limit))
-    .skip((parseInt(page) - 1) * parseInt(limit));
-
-  const total = await SupportTicket.countDocuments(filter);
-
-  res.status(200).json({
-    success: true,
-    data: { tickets, total },
-    message: "All tickets fetched",
-  });
+  const tickets = await SupportTicket.find();
+  res.json({ success: true, data: tickets });
 });
 
 exports.assignTicket = asyncHandler(async (req, res) => {
-  const { ticketId } = req.params;
-  const { agentId } = req.body;
+  const ticket = await SupportTicket.findById(req.params.ticketId);
+  const updated = await service.assignTicket({ ticket, agentId: req.body.agentId });
+  res.json({ success: true, data: updated });
+});
 
-  const ticket = await SupportTicket.findByIdAndUpdate(
-    ticketId,
-    {
-      assignedTo: agentId,
-      status: "IN_PROGRESS",
-    },
-    { new: true }
-  ).populate("assignedTo", "name email");
-
-  if (!ticket) {
-    return res.status(404).json({ success: false, message: "Ticket not found" });
-  }
-
-  res.status(200).json({
-    success: true,
-    data: ticket,
-    message: "Ticket assigned successfully",
+exports.updateTicketStatus = asyncHandler(async (req, res) => {
+  const ticket = await SupportTicket.findById(req.params.ticketId);
+  const updated = await service.updateTicketStatus({
+    ticket,
+    status: req.body.status,
+    admin: req.user,
   });
+  res.json({ success: true, data: updated });
+});
+
+exports.closeTicket = asyncHandler(async (req, res) => {
+  const ticket = await SupportTicket.findById(req.params.ticketId);
+  const closed = await service.closeTicket({ ticket, admin: req.user });
+  res.json({ success: true, data: closed });
 });
 
 exports.getTicketStats = asyncHandler(async (req, res) => {
-  const totalTickets = await SupportTicket.countDocuments();
-  const openTickets = await SupportTicket.countDocuments({ status: "OPEN" });
-  const inProgressTickets = await SupportTicket.countDocuments({
-    status: "IN_PROGRESS",
-  });
-  const resolvedTickets = await SupportTicket.countDocuments({
-    status: "RESOLVED",
-  });
-
-  const avgResolutionTime = await SupportTicket.aggregate([
-    {
-      $match: { "resolution.resolvedAt": { $exists: true } },
-    },
-    {
-      $group: {
-        _id: null,
-        avgTime: {
-          $avg: {
-            $subtract: ["$resolution.resolvedAt", "$createdAt"],
-          },
-        },
-      },
-    },
-  ]);
-
-  const avgRating = await SupportTicket.aggregate([
-    {
-      $match: { "satisfaction.rating": { $exists: true } },
-    },
-    {
-      $group: {
-        _id: null,
-        avgRating: { $avg: "$satisfaction.rating" },
-      },
-    },
-  ]);
-
-  res.status(200).json({
-    success: true,
-    data: {
-      totalTickets,
-      openTickets,
-      inProgressTickets,
-      resolvedTickets,
-      avgResolutionTime: avgResolutionTime[0]?.avgTime || 0,
-      avgRating: avgRating[0]?.avgRating || 0,
-    },
-    message: "Ticket statistics fetched",
-  });
+  const total = await SupportTicket.countDocuments();
+  res.json({ success: true, data: { total } });
 });
+
